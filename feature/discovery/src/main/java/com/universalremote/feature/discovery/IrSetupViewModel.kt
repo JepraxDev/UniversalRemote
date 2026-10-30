@@ -61,19 +61,23 @@ class IrSetupViewModel @Inject constructor(
 
     fun initProfiles(type: DeviceType, brand: DeviceBrand) {
         val availability = availabilityProvider.availability()
-        val profiles = infraredRepository.profiles.filter { it.brand == brand && it.deviceType == type }
-        val pending = infraredRepository.pendingBrands.firstOrNull { it.brand == brand && it.deviceType == type }
+        val effectiveBrand = if (type == DeviceType.PROJECTOR && brand == DeviceBrand.LG) DeviceBrand.EPSON else brand
+        var profiles = infraredRepository.profiles.filter { it.brand == effectiveBrand && it.deviceType == type }
+        if (profiles.isEmpty()) {
+            profiles = infraredRepository.profiles.filter { it.brand == effectiveBrand }
+        }
+        val pending = infraredRepository.pendingBrands.firstOrNull { it.brand == effectiveBrand && it.deviceType == type }
         val selected = profiles.firstOrNull()
 
         mutableState.update {
             it.copy(
                 deviceType = type,
-                brand = brand,
+                brand = effectiveBrand,
                 irAvailability = availability,
                 availableProfiles = profiles,
                 pendingBrandInfo = pending,
                 selectedProfile = selected,
-                customDeviceName = "${brand.id} ${if (type == DeviceType.TV) "TV" else "Proyector"}",
+                customDeviceName = "${effectiveBrand.id} ${if (type == DeviceType.TV) "TV" else "Proyector"}",
                 testStep = IrTestStep.SELECT_PROFILE,
                 lastTransmissionMessage = null,
                 validationStatus = IrValidationStatus.UNVERIFIED,

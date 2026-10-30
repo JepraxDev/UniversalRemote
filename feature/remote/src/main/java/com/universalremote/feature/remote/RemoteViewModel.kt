@@ -10,6 +10,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -19,6 +20,7 @@ data class RemoteUiState(
     val deviceName: String? = null,
     val deviceType: DeviceType = DeviceType.TV,
     val connectionType: ConnectionType = ConnectionType.WIFI,
+    val remoteMode: RemoteMode = RemoteMode.BASIC,
     val locationTag: String? = null,
     val compatibilityStatus: CompatibilityStatus = CompatibilityStatus.VERIFIED_PROTOCOL,
     val isDemo: Boolean = true,
@@ -38,7 +40,8 @@ class RemoteViewModel @Inject constructor(
     private val sendRemoteCommand: SendRemoteCommand,
     private val sendNetworkCommand: SendNetworkCommand,
     private val availabilityProvider: IrAvailabilityProvider,
-    private val capabilityResolver: DeviceCapabilityResolver
+    private val capabilityResolver: DeviceCapabilityResolver,
+    private val preferencesRepository: PreferencesRepository
 ) : ViewModel() {
 
     private val mutableState = MutableStateFlow(
@@ -52,7 +55,24 @@ class RemoteViewModel @Inject constructor(
     private var loadedDevice: Device? = null
 
     init {
+        observeMode()
         loadDevice()
+    }
+
+    private fun observeMode() {
+        viewModelScope.launch {
+            preferencesRepository.remoteMode
+                .catch { }
+                .collect { mode ->
+                    mutableState.update { it.copy(remoteMode = mode) }
+                }
+        }
+    }
+
+    fun setRemoteMode(mode: RemoteMode) {
+        viewModelScope.launch {
+            preferencesRepository.setRemoteMode(mode)
+        }
     }
 
     fun loadDevice(id: String? = mutableState.value.deviceId) {

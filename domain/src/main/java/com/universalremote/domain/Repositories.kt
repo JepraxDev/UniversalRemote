@@ -14,9 +14,11 @@ interface PreferencesRepository {
     val theme: Flow<ThemePreference>
     val hapticEnabled: Flow<Boolean>
     val reduceAnimations: Flow<Boolean>
+    val remoteMode: Flow<RemoteMode>
     suspend fun setTheme(theme: ThemePreference)
     suspend fun setHapticEnabled(enabled: Boolean)
     suspend fun setReduceAnimations(reduced: Boolean)
+    suspend fun setRemoteMode(mode: RemoteMode)
 }
 fun interface IrAvailabilityProvider {
     fun availability(): IrAvailability

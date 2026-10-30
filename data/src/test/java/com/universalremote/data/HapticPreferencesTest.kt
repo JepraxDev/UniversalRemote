@@ -1,5 +1,6 @@
 package com.universalremote.data
 
+import com.universalremote.core.model.RemoteMode
 import com.universalremote.core.model.ThemePreference
 import com.universalremote.domain.PreferencesRepository
 import kotlinx.coroutines.flow.Flow
@@ -15,14 +16,17 @@ class HapticPreferencesTest {
         private val themeFlow = MutableStateFlow(ThemePreference.SYSTEM)
         private val hapticFlow = MutableStateFlow(true)
         private val animFlow = MutableStateFlow(false)
+        private val modeFlow = MutableStateFlow(RemoteMode.BASIC)
 
         override val theme: Flow<ThemePreference> = themeFlow
         override val hapticEnabled: Flow<Boolean> = hapticFlow
         override val reduceAnimations: Flow<Boolean> = animFlow
+        override val remoteMode: Flow<RemoteMode> = modeFlow
 
         override suspend fun setTheme(theme: ThemePreference) { themeFlow.value = theme }
         override suspend fun setHapticEnabled(enabled: Boolean) { hapticFlow.value = enabled }
         override suspend fun setReduceAnimations(reduced: Boolean) { animFlow.value = reduced }
+        override suspend fun setRemoteMode(mode: RemoteMode) { modeFlow.value = mode }
     }
 
     @Test

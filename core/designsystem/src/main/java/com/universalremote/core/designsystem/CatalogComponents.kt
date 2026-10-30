@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -13,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -128,50 +130,200 @@ fun ConnectionMethodSelector(selected: ConnectionType, ir: IrAvailability?, onSe
 }
 
 @Composable
-fun DeviceCard(device: Device, onPreview: (() -> Unit)? = null, onFavorite: (() -> Unit)? = null, onDelete: (() -> Unit)? = null) {
-    var expanded by rememberSaveable(device.id) { mutableStateOf(false) }
+fun DeviceCard(
+    device: Device,
+    onOpenRemote: () -> Unit,
+    onFavorite: (() -> Unit)? = null,
+    onRename: (() -> Unit)? = null,
+    onEditConnection: (() -> Unit)? = null,
+    onChangeLocation: (() -> Unit)? = null,
+    onShowDetails: (() -> Unit)? = null,
+    onDelete: (() -> Unit)? = null,
+) {
     var menu by remember { mutableStateOf(false) }
-    Card(Modifier.fillMaxWidth().animateContentSize(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.primaryContainer) {
-                    Icon(if (device.deviceType == DeviceType.TV) Icons.Default.Tv else Icons.Default.Videocam,
-                        deviceTypeText(device.deviceType), Modifier.padding(14.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+    val cleanName = DeviceDisplayNameResolver.resolveDisplayName(device)
+    val subtitle = DeviceDisplayNameResolver.resolveSubtitle(device)
+    val haptic = rememberHapticFeedbackHelper()
+
+    Card(
+        onClick = {
+            haptic.performClick()
+            onOpenRemote()
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Device Icon Container
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(56.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            if (device.deviceType == DeviceType.TV) Icons.Default.Tv else Icons.Default.Videocam,
+                            contentDescription = deviceTypeText(device.deviceType),
+                            modifier = Modifier.size(28.dp),
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                 }
-                Column(Modifier.weight(1f)) {
-                    Text(device.name, style = MaterialTheme.typography.titleMedium)
-                    Text(listOf(brandText(device.brand), device.model).filter { it.isNotBlank() }.joinToString(" · "),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+
+                // Name & Subtitle
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            cleanName,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1
+                        )
+                        if (device.isFavorite) {
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = "Favorito",
+                                tint = Color(0xFFEAB308),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    val loc = device.locationTag ?: device.roomName
+                    if (!loc.isNullOrBlank()) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.padding(top = 2.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.LocationOn,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Text(loc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
                 }
-                if (device.isFavorite) Icon(Icons.Default.Star, stringResource(R.string.favorite), tint = MaterialTheme.colorScheme.primary)
-                if (onPreview != null || onFavorite != null || onDelete != null) Box {
-                    IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, stringResource(R.string.device_actions, device.name)) }
-                    DropdownMenu(menu, { menu = false }) {
-                        if (onPreview != null) DropdownMenuItem(text = { Text(stringResource(R.string.preview_remote)) }, onClick = { menu = false; onPreview() })
-                        if (onFavorite != null) DropdownMenuItem(text = { Text(stringResource(if (device.isFavorite) R.string.unfavorite else R.string.make_favorite)) }, onClick = { menu = false; onFavorite() })
-                        if (onDelete != null) DropdownMenuItem(text = { Text(stringResource(R.string.delete_device)) }, onClick = { menu = false; onDelete() })
+
+                // 3-dots Menu Button
+                Box {
+                    IconButton(onClick = { menu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Opciones")
+                    }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        if (onFavorite != null) {
+                            DropdownMenuItem(
+                                text = { Text(if (device.isFavorite) "Quitar de favoritos" else "Marcar como favorito") },
+                                onClick = { menu = false; onFavorite() },
+                                leadingIcon = { Icon(if (device.isFavorite) Icons.Default.StarBorder else Icons.Default.Star, null) }
+                            )
+                        }
+                        if (onRename != null) {
+                            DropdownMenuItem(
+                                text = { Text("Renombrar") },
+                                onClick = { menu = false; onRename() },
+                                leadingIcon = { Icon(Icons.Default.Edit, null) }
+                            )
+                        }
+                        if (onEditConnection != null) {
+                            DropdownMenuItem(
+                                text = { Text("Editar conexión") },
+                                onClick = { menu = false; onEditConnection() },
+                                leadingIcon = { Icon(Icons.Default.SettingsRemote, null) }
+                            )
+                        }
+                        if (onChangeLocation != null) {
+                            DropdownMenuItem(
+                                text = { Text("Cambiar ubicación") },
+                                onClick = { menu = false; onChangeLocation() },
+                                leadingIcon = { Icon(Icons.Default.LocationOn, null) }
+                            )
+                        }
+                        if (onShowDetails != null) {
+                            DropdownMenuItem(
+                                text = { Text("Ver detalles") },
+                                onClick = { menu = false; onShowDetails() },
+                                leadingIcon = { Icon(Icons.Default.Info, null) }
+                            )
+                        }
+                        if (onDelete != null) {
+                            DropdownMenuItem(
+                                text = { Text("Eliminar") },
+                                onClick = { menu = false; onDelete() },
+                                leadingIcon = { Icon(Icons.Default.Delete, null) }
+                            )
+                        }
                     }
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(connectionText(device.connectionType), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                AssistChip(
-                    onClick = {},
-                    label = {
-                        Text(when (device.compatibilityStatus) {
-                            CompatibilityStatus.VERIFIED_PHYSICAL -> "Verificado Físico"
-                            CompatibilityStatus.VERIFIED_PROTOCOL -> "Verificado Protocolo"
-                            CompatibilityStatus.EXPERIMENTAL -> "Experimental"
-                            CompatibilityStatus.NOT_IMPLEMENTED -> "Pendiente"
-                            CompatibilityStatus.UNSUPPORTED -> "No Soportado"
-                        }, style = MaterialTheme.typography.labelSmall)
+
+            // Transport Pill Badge & Prominent "Abrir control" Action Button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            if (device.connectionType == ConnectionType.WIFI) Icons.Default.Wifi else Icons.Default.SettingsRemote,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = if (device.connectionType == ConnectionType.WIFI) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.secondary
+                        )
+                        Text(
+                            text = if (device.connectionType == ConnectionType.WIFI) {
+                                "Wi-Fi · ${device.ipAddress ?: "IP no configurada"}"
+                            } else {
+                                "Infrarrojo · Disponible"
+                            },
+                            style = MaterialTheme.typography.labelSmall
+                        )
                     }
-                )
+                }
+
+                Button(
+                    onClick = {
+                        haptic.performClick()
+                        onOpenRemote()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.SettingsRemote,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Abrir control", style = MaterialTheme.typography.labelMedium)
+                }
             }
-            val tag = device.locationTag ?: device.roomName
-            tag?.takeIf { it.isNotBlank() }?.let { Text("Ubicación/Aula: $it", style = MaterialTheme.typography.bodyMedium) }
-            TextButton(onClick = { expanded = !expanded }) { Text(stringResource(if (expanded) R.string.less_detail else R.string.more_detail)) }
-            if (expanded) Text(stringResource(R.string.configured_not_connected), style = MaterialTheme.typography.bodyMedium)
         }
     }
 }

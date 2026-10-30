@@ -84,9 +84,11 @@ class MainActivity : ComponentActivity() {
                         composable(Destination.HOME.name) {
                             HomeScreen(
                                 viewModel = home,
-                                onDevices = { nav.openTab(MainTab.DEVICES) },
-                                onAdd = { nav.open(Destination.ADD) },
-                                onRemote = preview,
+                                onDevicesNav = { nav.openTab(MainTab.DEVICES) },
+                                onAddNav = { nav.open(Destination.ADD) },
+                                onDiscoveryNav = { nav.open(Destination.SETUP) },
+                                onSettingsNav = { nav.openTab(MainTab.SETTINGS) },
+                                onRemotePreview = preview,
                                 onOpenDevice = openDevice
                             )
                         }
@@ -102,14 +104,15 @@ class MainActivity : ComponentActivity() {
                         composable(Destination.ADD.name) {
                             val state by add.state.collectAsStateWithLifecycle()
                             BackHandler(enabled = state.step > 0) { add.previous() }
-                            AddDeviceScreen(add, back) {
-                                if (state.connection == ConnectionType.INFRARED) {
-                                    irSetup.initProfiles(state.type, state.brand)
+                            AddDeviceScreen(
+                                viewModel = add,
+                                onBack = back,
+                                onSearchWifi = { nav.open(Destination.SETUP) },
+                                onSetupIr = { type ->
+                                    irSetup.initProfiles(type, state.brand)
                                     nav.open(Destination.IR_SETUP)
-                                } else {
-                                    nav.open(Destination.SETUP)
                                 }
-                            }
+                            )
                         }
                         composable(Destination.SETUP.name) {
                             NetworkDiscoveryScreen(
@@ -131,8 +134,24 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         }
-                        composable(Destination.REMOTE_TV.name) { RemoteScreen(DeviceType.TV, remote, back) }
-                        composable(Destination.REMOTE_PROJECTOR.name) { RemoteScreen(DeviceType.PROJECTOR, remote, back) }
+                        composable(Destination.REMOTE_TV.name) {
+                            RemoteScreen(
+                                viewModel = remote,
+                                onBack = back,
+                                onOpenCustomize = { nav.open(Destination.CUSTOMIZE_REMOTE) },
+                                onOpenQuickActions = { nav.open(Destination.QUICK_ACTIONS) },
+                                onOpenLocations = { nav.open(Destination.LOCATIONS) }
+                            )
+                        }
+                        composable(Destination.REMOTE_PROJECTOR.name) {
+                            RemoteScreen(
+                                viewModel = remote,
+                                onBack = back,
+                                onOpenCustomize = { nav.open(Destination.CUSTOMIZE_REMOTE) },
+                                onOpenQuickActions = { nav.open(Destination.QUICK_ACTIONS) },
+                                onOpenLocations = { nav.open(Destination.LOCATIONS) }
+                            )
+                        }
                         composable(Destination.SETTINGS.name) { SettingsScreen(settings, BuildConfig.VERSION_NAME, BuildConfig.STAGE, back) }
                         composable(Destination.LOCATIONS.name) {
                             val locationsVm: LocationsViewModel = viewModel()

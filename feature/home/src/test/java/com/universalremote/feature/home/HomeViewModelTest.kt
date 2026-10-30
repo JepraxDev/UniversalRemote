@@ -18,28 +18,38 @@ class HomeViewModelTest {
     @After fun tearDown() { Dispatchers.resetMain() }
 
     @Test fun noIrLoadsRealEmptyState() = runTest(dispatcher) {
-        val vm = HomeViewModel(FakeRepository(), { IrAvailability.NoEmitter }, dispatcher)
+        val repo = FakeRepository()
+        val vm = HomeViewModel(repo, { IrAvailability.NoEmitter }, OpenRemoteUseCase(repo), dispatcher)
         advanceUntilIdle()
-        assertEquals(HomeUiState(loading = false, ir = IrAvailability.NoEmitter), vm.state.value)
+        assertEquals(false, vm.state.value.loading)
+        assertEquals(IrAvailability.NoEmitter, vm.state.value.irAvailability)
     }
+
     @Test fun devicesAreObservedWithoutClaimingConnections() = runTest(dispatcher) {
         val device = Device("1", "TV", DeviceBrand.SONY, "", DeviceType.TV, ConnectionType.WIFI)
-        val vm = HomeViewModel(FakeRepository(flowOf(listOf(device))), { IrAvailability.Available }, dispatcher)
+        val repo = FakeRepository(flowOf(listOf(device)))
+        val vm = HomeViewModel(repo, { IrAvailability.Available }, OpenRemoteUseCase(repo), dispatcher)
         advanceUntilIdle()
-        assertEquals(1, vm.state.value.deviceCount)
+        assertEquals(1, vm.state.value.allDevices.size)
         assertFalse(vm.state.value.error)
     }
-    @Test fun favoritesContainOnlySavedFavorites() = runTest(dispatcher) {
-        val favorite = Device("1", "TV", DeviceBrand.SONY, "", DeviceType.TV, ConnectionType.WIFI, isFavorite = true)
-        val ordinary = favorite.copy(id = "2", isFavorite = false)
-        val vm = HomeViewModel(FakeRepository(flowOf(listOf(favorite, ordinary))), { IrAvailability.NoEmitter }, dispatcher)
+
+    @Test fun filterByTypeSelectsOnlyTvsOrProjectors() = runTest(dispatcher) {
+        val tv = Device("1", "TV Living", DeviceBrand.SONY, "", DeviceType.TV, ConnectionType.WIFI)
+        val projector = Device("2", "Proyector Aula", DeviceBrand.EPSON, "", DeviceType.PROJECTOR, ConnectionType.WIFI)
+        val repo = FakeRepository(flowOf(listOf(tv, projector)))
+        val vm = HomeViewModel(repo, { IrAvailability.Available }, OpenRemoteUseCase(repo), dispatcher)
         advanceUntilIdle()
-        assertEquals(listOf(favorite), vm.state.value.favorites)
-        assertEquals(2, vm.state.value.deviceCount)
+
+        assertEquals(2, vm.state.value.filteredDevices.size)
+        vm.selectTypeFilter(DeviceType.TV)
+        assertEquals(1, vm.state.value.filteredDevices.size)
+        assertEquals("1", vm.state.value.filteredDevices.first().id)
     }
+
     @Test fun databaseFailureIsNotShownAsEmptySuccessAndCanRetry() = runTest(dispatcher) {
         val repository = FakeRepository(flow { throw IllegalStateException("database unavailable") })
-        val vm = HomeViewModel(repository, { IrAvailability.ServiceUnavailable }, dispatcher)
+        val vm = HomeViewModel(repository, { IrAvailability.ServiceUnavailable }, OpenRemoteUseCase(repository), dispatcher)
         advanceUntilIdle()
         assertTrue(vm.state.value.error)
         assertFalse(vm.state.value.loading)
@@ -47,13 +57,15 @@ class HomeViewModelTest {
         vm.refresh()
         advanceUntilIdle()
         assertFalse(vm.state.value.error)
-        assertEquals(0, vm.state.value.deviceCount)
+        assertEquals(0, vm.state.value.allDevices.size)
     }
+
     private class FakeRepository(var source: Flow<List<Device>> = flowOf(emptyList())) : DeviceRepository {
+        val map = mutableMapOf<String, Device>()
         override fun observeDevices() = source
-        override suspend fun find(id: String): Device? = null
-        override suspend fun insert(device: Device) = Unit
-        override suspend fun update(device: Device) = Unit
-        override suspend fun delete(id: String) = Unit
+        override suspend fun find(id: String): Device? = map[id]
+        override suspend fun insert(device: Device) { map[device.id] = device }
+        override suspend fun update(device: Device) { map[device.id] = device }
+        override suspend fun delete(id: String) { map.remove(id) }
     }
 }

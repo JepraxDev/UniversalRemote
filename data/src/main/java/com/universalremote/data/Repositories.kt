@@ -90,6 +90,7 @@ class DataStorePreferencesRepository(context: Context) : PreferencesRepository {
     private val themeKey = stringPreferencesKey("theme")
     private val hapticKey = booleanPreferencesKey("haptic_enabled")
     private val animationsKey = booleanPreferencesKey("reduce_animations")
+    private val remoteModeKey = stringPreferencesKey("remote_mode")
 
     override val theme = store.data.map { preferences ->
         ThemePreference.entries.firstOrNull { it.name == preferences[themeKey] } ?: ThemePreference.SYSTEM
@@ -100,6 +101,9 @@ class DataStorePreferencesRepository(context: Context) : PreferencesRepository {
     override val reduceAnimations = store.data.map { preferences ->
         preferences[animationsKey] ?: false
     }
+    override val remoteMode = store.data.map { preferences ->
+        RemoteMode.entries.firstOrNull { it.name == preferences[remoteModeKey] } ?: RemoteMode.BASIC
+    }
 
     override suspend fun setTheme(theme: ThemePreference) {
         store.edit { it[themeKey] = theme.name }
@@ -109,6 +113,9 @@ class DataStorePreferencesRepository(context: Context) : PreferencesRepository {
     }
     override suspend fun setReduceAnimations(reduced: Boolean) {
         store.edit { it[animationsKey] = reduced }
+    }
+    override suspend fun setRemoteMode(mode: RemoteMode) {
+        store.edit { it[remoteModeKey] = mode.name }
     }
 }
 
@@ -315,4 +322,7 @@ object DataModule {
 
     @Provides
     fun sendNetworkCommand(registry: ProtocolRegistry): SendNetworkCommand = SendNetworkCommand(registry)
+
+    @Provides
+    fun openRemoteUseCase(repository: DeviceRepository): OpenRemoteUseCase = OpenRemoteUseCase(repository)
 }

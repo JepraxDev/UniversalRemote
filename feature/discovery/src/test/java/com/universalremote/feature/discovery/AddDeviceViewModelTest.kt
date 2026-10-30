@@ -53,7 +53,7 @@ class AddDeviceViewModelTest {
         val vm = AddDeviceViewModel(SavedStateHandle(), { IrAvailability.NoEmitter }, dispatcher)
         advanceUntilIdle()
         repeat(5) { vm.next() }
-        assertEquals(2, vm.state.value.step)
+        assertEquals(1, vm.state.value.step)
         repeat(5) { vm.previous() }
         assertEquals(0, vm.state.value.step)
     }

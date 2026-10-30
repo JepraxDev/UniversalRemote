@@ -8,6 +8,7 @@ import com.universalremote.protocol.api.RemoteProtocol
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.*
 import org.junit.After
@@ -65,10 +66,28 @@ class RemoteViewModelTest {
         override fun getProtocolForDevice(device: Device): RemoteProtocol? = null
     }
 
+    private class FakePreferencesRepository : PreferencesRepository {
+        private val themeFlow = MutableStateFlow(ThemePreference.SYSTEM)
+        private val hapticFlow = MutableStateFlow(true)
+        private val animFlow = MutableStateFlow(false)
+        private val modeFlow = MutableStateFlow(RemoteMode.BASIC)
+
+        override val theme: Flow<ThemePreference> = themeFlow
+        override val hapticEnabled: Flow<Boolean> = hapticFlow
+        override val reduceAnimations: Flow<Boolean> = animFlow
+        override val remoteMode: Flow<RemoteMode> = modeFlow
+
+        override suspend fun setTheme(theme: ThemePreference) { themeFlow.value = theme }
+        override suspend fun setHapticEnabled(enabled: Boolean) { hapticFlow.value = enabled }
+        override suspend fun setReduceAnimations(reduced: Boolean) { animFlow.value = reduced }
+        override suspend fun setRemoteMode(mode: RemoteMode) { modeFlow.value = mode }
+    }
+
     private lateinit var deviceRepository: FakeDeviceRepository
     private lateinit var infraredRepository: FakeInfraredRepository
     private lateinit var sendNetworkCommand: SendNetworkCommand
     private lateinit var capabilityResolver: DeviceCapabilityResolver
+    private lateinit var preferencesRepository: FakePreferencesRepository
 
     @Before
     fun setup() {
@@ -78,6 +97,7 @@ class RemoteViewModelTest {
         val registry = FakeProtocolRegistry()
         sendNetworkCommand = SendNetworkCommand(registry)
         capabilityResolver = DeviceCapabilityResolver(infraredRepository, registry)
+        preferencesRepository = FakePreferencesRepository()
     }
 
     @After
@@ -95,7 +115,8 @@ class RemoteViewModelTest {
             sendRemoteCommand = SendRemoteCommand(infraredRepository),
             sendNetworkCommand = sendNetworkCommand,
             availabilityProvider = { IrAvailability.Available },
-            capabilityResolver = capabilityResolver
+            capabilityResolver = capabilityResolver,
+            preferencesRepository = preferencesRepository
         )
         testScheduler.advanceUntilIdle()
         assertTrue(vm.state.value.isDemo)
@@ -115,7 +136,8 @@ class RemoteViewModelTest {
             sendRemoteCommand = SendRemoteCommand(infraredRepository),
             sendNetworkCommand = sendNetworkCommand,
             availabilityProvider = { IrAvailability.Available },
-            capabilityResolver = capabilityResolver
+            capabilityResolver = capabilityResolver,
+            preferencesRepository = preferencesRepository
         )
         testScheduler.advanceUntilIdle()
 
@@ -139,7 +161,8 @@ class RemoteViewModelTest {
             sendRemoteCommand = SendRemoteCommand(infraredRepository),
             sendNetworkCommand = sendNetworkCommand,
             availabilityProvider = { IrAvailability.Available },
-            capabilityResolver = capabilityResolver
+            capabilityResolver = capabilityResolver,
+            preferencesRepository = preferencesRepository
         )
         testScheduler.advanceUntilIdle()
 
@@ -160,7 +183,8 @@ class RemoteViewModelTest {
             sendRemoteCommand = SendRemoteCommand(infraredRepository),
             sendNetworkCommand = sendNetworkCommand,
             availabilityProvider = { IrAvailability.Available },
-            capabilityResolver = capabilityResolver
+            capabilityResolver = capabilityResolver,
+            preferencesRepository = preferencesRepository
         )
         testScheduler.advanceUntilIdle()
 
@@ -183,7 +207,8 @@ class RemoteViewModelTest {
             sendRemoteCommand = SendRemoteCommand(infraredRepository),
             sendNetworkCommand = sendNetworkCommand,
             availabilityProvider = { IrAvailability.Available },
-            capabilityResolver = capabilityResolver
+            capabilityResolver = capabilityResolver,
+            preferencesRepository = preferencesRepository
         )
         testScheduler.advanceUntilIdle()
 
@@ -214,7 +239,8 @@ class RemoteViewModelTest {
             sendRemoteCommand = SendRemoteCommand(infraredRepository),
             sendNetworkCommand = sendNetworkCommand,
             availabilityProvider = { IrAvailability.Available },
-            capabilityResolver = capabilityResolver
+            capabilityResolver = capabilityResolver,
+            preferencesRepository = preferencesRepository
         )
         testScheduler.advanceUntilIdle()
 
@@ -223,5 +249,27 @@ class RemoteViewModelTest {
         testScheduler.advanceUntilIdle()
 
         assertTrue(infraredRepository.sentCommands.isEmpty())
+    }
+
+    @Test
+    fun modeCanBeToggledToFull() = runTest(testDispatcher) {
+        val saved = SavedStateHandle()
+        val vm = RemoteViewModel(
+            saved = saved,
+            deviceRepository = deviceRepository,
+            infraredRepository = infraredRepository,
+            sendRemoteCommand = SendRemoteCommand(infraredRepository),
+            sendNetworkCommand = sendNetworkCommand,
+            availabilityProvider = { IrAvailability.Available },
+            capabilityResolver = capabilityResolver,
+            preferencesRepository = preferencesRepository
+        )
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(RemoteMode.BASIC, vm.state.value.remoteMode)
+        vm.setRemoteMode(RemoteMode.FULL)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(RemoteMode.FULL, vm.state.value.remoteMode)
     }
 }

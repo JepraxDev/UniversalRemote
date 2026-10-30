@@ -4,6 +4,8 @@ enum class DeviceType { TV, PROJECTOR }
 enum class ConnectionType { WIFI, INFRARED }
 enum class ThemePreference { SYSTEM, LIGHT, DARK }
 
+enum class RemoteMode { BASIC, FULL }
+
 enum class CompatibilityStatus {
     VERIFIED_PHYSICAL,
     VERIFIED_PROTOCOL,
@@ -138,6 +140,12 @@ enum class RemoteCommand {
     CHANNEL_UP, CHANNEL_DOWN, MUTE, HOME, HDMI, VGA, LAN, FREEZE, AV_MUTE,
     POWER_ON, POWER_OFF, HDMI_1, HDMI_2,
     NUM_0, NUM_1, NUM_2, NUM_3, NUM_4, NUM_5, NUM_6, NUM_7, NUM_8, NUM_9,
+    STAR, HASH,
+    PLAY, PAUSE, STOP, PREVIOUS, NEXT, REWIND, FAST_FORWARD,
+    GUIDE, INFO, SUBTITLE, SETTINGS_KEY, KEYBOARD, APPS,
+    ASPECT_RATIO, COLOR_MODE, BRIGHTNESS, CONTRAST, ECO_MODE, AUTO_SETUP, KEYSTONE,
+    ZOOM_IN, ZOOM_OUT, FOCUS_NEAR, FOCUS_FAR,
+    LAMP_STATUS, LAMP_HOURS,
 }
 
 data class DeviceCapabilities(val supportedCommands: Set<RemoteCommand> = emptySet())
