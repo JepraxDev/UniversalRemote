@@ -11,14 +11,22 @@ android {
         applicationId = "com.universalremote.app"
         minSdk = 26
         targetSdk = 37
-        versionCode = 3
-        versionName = "0.3.0"
-        buildConfigField("int", "STAGE", "3")
+        versionCode = 8
+        versionName = "1.0.0-rc1"
+        buildConfigField("int", "STAGE", "8")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            isShrinkResources = false
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("debug")
+        }
     }
     buildFeatures { compose = true; buildConfig = true }
 }

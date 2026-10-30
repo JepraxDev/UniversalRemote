@@ -6,8 +6,11 @@ import org.junit.Test
 
 class DeviceMappingTest {
     @Test fun fullDeviceRoundTripPreservesUnknownBrandAndOptionalFields() {
-        val device = Device("id-42", "Sala", DeviceBrand("FUTURE_BRAND"), "X1", DeviceType.PROJECTOR,
-            ConnectionType.WIFI, "192.168.1.5", 4352, "profile-1", "Sala principal", true)
+        val device = Device(
+            id = "id-42", name = "Sala", brand = DeviceBrand("FUTURE_BRAND"), model = "X1", deviceType = DeviceType.PROJECTOR,
+            connectionType = ConnectionType.WIFI, ipAddress = "192.168.1.5", port = 4352, protocolId = "PJLINK",
+            irProfileId = "profile-1", roomName = "Sala principal", isFavorite = true
+        )
         assertEquals(device, device.toEntity().toModel())
     }
     @Test fun infraredDeviceWithNullNetworkFieldsRoundTrips() {

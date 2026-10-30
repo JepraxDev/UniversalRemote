@@ -153,8 +153,23 @@ fun DeviceCard(device: Device, onPreview: (() -> Unit)? = null, onFavorite: (() 
                     }
                 }
             }
-            Text(connectionText(device.connectionType), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            device.roomName?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(connectionText(device.connectionType), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                AssistChip(
+                    onClick = {},
+                    label = {
+                        Text(when (device.compatibilityStatus) {
+                            CompatibilityStatus.VERIFIED_PHYSICAL -> "Verificado Físico"
+                            CompatibilityStatus.VERIFIED_PROTOCOL -> "Verificado Protocolo"
+                            CompatibilityStatus.EXPERIMENTAL -> "Experimental"
+                            CompatibilityStatus.NOT_IMPLEMENTED -> "Pendiente"
+                            CompatibilityStatus.UNSUPPORTED -> "No Soportado"
+                        }, style = MaterialTheme.typography.labelSmall)
+                    }
+                )
+            }
+            val tag = device.locationTag ?: device.roomName
+            tag?.takeIf { it.isNotBlank() }?.let { Text("Ubicación/Aula: $it", style = MaterialTheme.typography.bodyMedium) }
             TextButton(onClick = { expanded = !expanded }) { Text(stringResource(if (expanded) R.string.less_detail else R.string.more_detail)) }
             if (expanded) Text(stringResource(R.string.configured_not_connected), style = MaterialTheme.typography.bodyMedium)
         }

@@ -30,7 +30,7 @@ import com.universalremote.feature.remote.*
 import com.universalremote.feature.settings.*
 import dagger.hilt.android.AndroidEntryPoint
 
-private enum class Destination { HOME, DEVICES, ADD, SETUP, IR_SETUP, REMOTE_TV, REMOTE_PROJECTOR, SETTINGS }
+private enum class Destination { HOME, DEVICES, ADD, SETUP, IR_SETUP, REMOTE_TV, REMOTE_PROJECTOR, SETTINGS, LOCATIONS, CUSTOMIZE_REMOTE, QUICK_ACTIONS, BACKUP_RESTORE }
 private fun NavHostController.open(destination: Destination) { navigate(destination.name) { launchSingleTop = true } }
 private fun NavHostController.openTab(tab: MainTab) {
     navigate(tab.name) {
@@ -51,6 +51,7 @@ class MainActivity : ComponentActivity() {
             val devices: DevicesViewModel = viewModel()
             val add: AddDeviceViewModel = viewModel()
             val irSetup: IrSetupViewModel = viewModel()
+            val networkDiscovery: NetworkDiscoveryViewModel = viewModel()
             val remote: RemoteViewModel = viewModel()
             val appearance by settings.state.collectAsStateWithLifecycle()
             val dark = appearance.theme == ThemePreference.DARK ||
@@ -110,7 +111,16 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
-                        composable(Destination.SETUP.name) { SetupInfoScreen(add, back, preview) }
+                        composable(Destination.SETUP.name) {
+                            NetworkDiscoveryScreen(
+                                viewModel = networkDiscovery,
+                                onBack = back,
+                                onDeviceConnected = { deviceId ->
+                                    remote.loadDevice(deviceId)
+                                    nav.open(Destination.REMOTE_TV)
+                                }
+                            )
+                        }
                         composable(Destination.IR_SETUP.name) {
                             IrSetupScreen(
                                 viewModel = irSetup,
@@ -124,6 +134,22 @@ class MainActivity : ComponentActivity() {
                         composable(Destination.REMOTE_TV.name) { RemoteScreen(DeviceType.TV, remote, back) }
                         composable(Destination.REMOTE_PROJECTOR.name) { RemoteScreen(DeviceType.PROJECTOR, remote, back) }
                         composable(Destination.SETTINGS.name) { SettingsScreen(settings, BuildConfig.VERSION_NAME, BuildConfig.STAGE, back) }
+                        composable(Destination.LOCATIONS.name) {
+                            val locationsVm: LocationsViewModel = viewModel()
+                            LocationsScreen(locationsVm, back)
+                        }
+                        composable(Destination.CUSTOMIZE_REMOTE.name) {
+                            val customizeVm: RemoteCustomizationViewModel = viewModel()
+                            RemoteCustomizationScreen(customizeVm, back)
+                        }
+                        composable(Destination.QUICK_ACTIONS.name) {
+                            val quickActionsVm: QuickActionsViewModel = viewModel()
+                            QuickActionsScreen(quickActionsVm, back)
+                        }
+                        composable(Destination.BACKUP_RESTORE.name) {
+                            val backupVm: BackupRestoreViewModel = viewModel()
+                            BackupRestoreScreen(backupVm, back)
+                        }
                     }
                 }
             }

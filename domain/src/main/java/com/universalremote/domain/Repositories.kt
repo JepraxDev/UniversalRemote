@@ -12,7 +12,11 @@ interface DeviceRepository {
 }
 interface PreferencesRepository {
     val theme: Flow<ThemePreference>
+    val hapticEnabled: Flow<Boolean>
+    val reduceAnimations: Flow<Boolean>
     suspend fun setTheme(theme: ThemePreference)
+    suspend fun setHapticEnabled(enabled: Boolean)
+    suspend fun setReduceAnimations(reduced: Boolean)
 }
 fun interface IrAvailabilityProvider {
     fun availability(): IrAvailability

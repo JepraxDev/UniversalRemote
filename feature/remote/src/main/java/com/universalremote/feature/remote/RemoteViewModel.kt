@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.universalremote.core.model.*
 import com.universalremote.domain.*
+import com.universalremote.protocol.api.CommandResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +18,9 @@ data class RemoteUiState(
     val deviceId: String? = null,
     val deviceName: String? = null,
     val deviceType: DeviceType = DeviceType.TV,
+    val connectionType: ConnectionType = ConnectionType.WIFI,
+    val locationTag: String? = null,
+    val compatibilityStatus: CompatibilityStatus = CompatibilityStatus.VERIFIED_PROTOCOL,
     val isDemo: Boolean = true,
     val irAvailability: IrAvailability = IrAvailability.ServiceUnavailable,
     val capabilities: DeviceCapabilities? = null,
@@ -32,7 +36,9 @@ class RemoteViewModel @Inject constructor(
     private val deviceRepository: DeviceRepository,
     private val infraredRepository: InfraredRepository,
     private val sendRemoteCommand: SendRemoteCommand,
+    private val sendNetworkCommand: SendNetworkCommand,
     private val availabilityProvider: IrAvailabilityProvider,
+    private val capabilityResolver: DeviceCapabilityResolver
 ) : ViewModel() {
 
     private val mutableState = MutableStateFlow(
@@ -43,6 +49,8 @@ class RemoteViewModel @Inject constructor(
     )
     val state = mutableState.asStateFlow()
 
+    private var loadedDevice: Device? = null
+
     init {
         loadDevice()
     }
@@ -52,45 +60,79 @@ class RemoteViewModel @Inject constructor(
             val availability = availabilityProvider.availability()
             val deviceId = id ?: saved.get<String>("deviceId")
             if (deviceId == null) {
+                loadedDevice = null
                 mutableState.update { it.copy(isDemo = true, irAvailability = availability) }
                 return@launch
             }
             val device = deviceRepository.find(deviceId)
-            if (device == null || device.connectionType != ConnectionType.INFRARED || device.irProfileId == null) {
+            loadedDevice = device
+            if (device == null) {
                 mutableState.update {
                     it.copy(
                         deviceId = deviceId,
-                        deviceName = device?.name,
-                        deviceType = device?.deviceType ?: it.deviceType,
                         isDemo = true,
                         irAvailability = availability
                     )
                 }
                 return@launch
             }
-            val profile = infraredRepository.profiles.firstOrNull { it.id == device.irProfileId }
-            val isHardwareReady = availability == IrAvailability.Available && profile != null
-            mutableState.update {
-                it.copy(
-                    deviceId = device.id,
-                    deviceName = device.name,
-                    deviceType = device.deviceType,
-                    isDemo = !isHardwareReady,
-                    irAvailability = availability,
-                    capabilities = profile?.capabilities
-                )
+
+            val caps = capabilityResolver.resolve(device)
+
+            if (device.connectionType == ConnectionType.WIFI) {
+                mutableState.update {
+                    it.copy(
+                        deviceId = device.id,
+                        deviceName = device.name,
+                        deviceType = device.deviceType,
+                        connectionType = ConnectionType.WIFI,
+                        locationTag = device.locationTag,
+                        compatibilityStatus = device.compatibilityStatus,
+                        isDemo = false,
+                        irAvailability = availability,
+                        capabilities = caps
+                    )
+                }
+            } else {
+                val profile = infraredRepository.profiles.firstOrNull { it.id == device.irProfileId }
+                val isHardwareReady = availability == IrAvailability.Available && profile != null
+                mutableState.update {
+                    it.copy(
+                        deviceId = device.id,
+                        deviceName = device.name,
+                        deviceType = device.deviceType,
+                        connectionType = ConnectionType.INFRARED,
+                        locationTag = device.locationTag,
+                        compatibilityStatus = device.compatibilityStatus,
+                        isDemo = !isHardwareReady,
+                        irAvailability = availability,
+                        capabilities = caps
+                    )
+                }
             }
+        }
+    }
+
+    fun toggleConnectionType() {
+        val current = loadedDevice ?: return
+        val newType = if (current.connectionType == ConnectionType.WIFI) ConnectionType.INFRARED else ConnectionType.WIFI
+        val updatedDevice = current.copy(connectionType = newType)
+        viewModelScope.launch {
+            deviceRepository.update(updatedDevice)
+            loadDevice(updatedDevice.id)
         }
     }
 
     fun sendCommand(command: RemoteCommand, confirmed: Boolean = false) {
         val current = mutableState.value
-        // Only transmit when device is configured, IR is available, profile exists, not demo, and not busy
-        if (current.isDemo || current.isTransmitting || current.deviceId == null) return
+        val device = loadedDevice
+
+        if (current.isDemo && current.connectionType == ConnectionType.INFRARED) return
+        if (current.isTransmitting || device == null) return
+
         val capabilities = current.capabilities ?: return
         if (command !in capabilities.supportedCommands) return
 
-        // Safety check: Power or AV_MUTE on projectors, or commands requiring confirmation
         if (!confirmed && command.requiresConfirmation()) {
             mutableState.update { it.copy(pendingConfirmationCommand = command) }
             return
@@ -99,41 +141,46 @@ class RemoteViewModel @Inject constructor(
         mutableState.update { it.copy(isTransmitting = true, isError = false, lastResultText = "Transmitiendo…") }
 
         viewModelScope.launch {
-            val result = sendRemoteCommand(current.deviceId, command, confirmed = true)
-            when (result) {
-                is IrResult.Success -> {
-                    mutableState.update {
-                        it.copy(
-                            lastResultText = "Señal enviada localmente",
-                            isError = false
-                        )
+            if (device.connectionType == ConnectionType.WIFI) {
+                when (val result = sendNetworkCommand(device, command)) {
+                    is CommandResult.Sent -> {
+                        mutableState.update {
+                            it.copy(lastResultText = "Comando enviado por Wi-Fi", isError = false)
+                        }
+                    }
+                    is CommandResult.Failed -> {
+                        mutableState.update {
+                            it.copy(lastResultText = "Error Wi-Fi: ${result.reason}", isError = true)
+                        }
+                    }
+                    is CommandResult.Unsupported -> {
+                        mutableState.update {
+                            it.copy(lastResultText = "Comando no soportado por el dispositivo", isError = true)
+                        }
+                    }
+                    is CommandResult.NotConfigured -> {
+                        mutableState.update {
+                            it.copy(lastResultText = "Dispositivo de red no configurado", isError = true)
+                        }
                     }
                 }
-                is IrResult.Failure -> {
-                    val errorMsg = when (result.error) {
-                        IrError.BUSY -> "Transmisor ocupado"
-                        IrError.UNSUPPORTED_FREQUENCY -> "Frecuencia no compatible con el celular"
-                        IrError.FREQUENCY_UNKNOWN -> "Frecuencia desconocida"
-                        IrError.INVALID_PATTERN -> "Patrón IR inválido"
-                        IrError.INVALID_FREQUENCY -> "Frecuencia fuera de rango"
-                        IrError.PERMISSION_DENIED -> "Permiso de transmisión denegado"
-                        IrError.PLATFORM_FAILURE -> "Error del emisor infrarrojo"
-                        IrError.CONFIRMATION_REQUIRED -> "Confirmación requerida"
-                        else -> "Error al transmitir comando"
+            } else {
+                val result = sendRemoteCommand(device.id, command, confirmed = true)
+                when (result) {
+                    is IrResult.Success -> {
+                        mutableState.update {
+                            it.copy(lastResultText = "Señal enviada localmente (IR)", isError = false)
+                        }
                     }
-                    mutableState.update {
-                        it.copy(
-                            lastResultText = errorMsg,
-                            isError = true
-                        )
+                    is IrResult.Failure -> {
+                        mutableState.update {
+                            it.copy(lastResultText = "Error al transmitir IR", isError = true)
+                        }
                     }
-                }
-                is IrResult.Unavailable -> {
-                    mutableState.update {
-                        it.copy(
-                            lastResultText = "Emisor IR no disponible en este celular",
-                            isError = true
-                        )
+                    is IrResult.Unavailable -> {
+                        mutableState.update {
+                            it.copy(lastResultText = "Emisor IR no disponible en este celular", isError = true)
+                        }
                     }
                 }
             }

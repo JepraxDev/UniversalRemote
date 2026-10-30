@@ -33,13 +33,17 @@ fun RemoteButton(
     onClick: (() -> Unit)? = null,
 ) {
     val isActionEnabled = onClick != null && supported && enabled
+    val hapticHelper = rememberHapticFeedbackHelper()
     val description = stringResource(
         if (!supported) R.string.unsupported_command
         else if (onClick != null) R.string.command_available
         else R.string.demo_short
     )
     OutlinedIconButton(
-        onClick = { onClick?.invoke() },
+        onClick = {
+            hapticHelper.performClick()
+            onClick?.invoke()
+        },
         enabled = isActionEnabled,
         modifier = modifier.size(56.dp).semantics { stateDescription = description },
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -107,8 +111,12 @@ fun RemoteDPad(
                 else if (onCommand != null) R.string.command_available
                 else R.string.demo_short
             )
+            val hapticHelper = rememberHapticFeedbackHelper()
             FilledTonalButton(
-                onClick = { onCommand?.invoke(RemoteCommand.OK) },
+                onClick = {
+                    hapticHelper.performClick()
+                    onCommand?.invoke(RemoteCommand.OK)
+                },
                 enabled = okActionEnabled,
                 modifier = Modifier.size(76.dp).semantics { stateDescription = description },
                 shape = CircleShape,

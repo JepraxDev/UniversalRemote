@@ -36,6 +36,8 @@ fun RemoteScreen(type: DeviceType, viewModel: RemoteViewModel, onBack: () -> Uni
         onBack = onBack,
         capabilities = state.capabilities,
         deviceName = state.deviceName,
+        connectionType = state.connectionType,
+        locationTag = state.locationTag,
         isDemo = state.isDemo,
         isTransmitting = state.isTransmitting,
         lastResultText = state.lastResultText,
@@ -44,6 +46,7 @@ fun RemoteScreen(type: DeviceType, viewModel: RemoteViewModel, onBack: () -> Uni
         onCommand = if (!state.isDemo) { cmd -> viewModel.sendCommand(cmd) } else null,
         onConfirmPending = viewModel::confirmPendingCommand,
         onDismissConfirmation = viewModel::dismissConfirmation,
+        onToggleConnectionType = viewModel::toggleConnectionType,
     )
 }
 
@@ -73,6 +76,8 @@ private fun RemoteScreenContent(
     onBack: () -> Unit,
     capabilities: DeviceCapabilities?,
     deviceName: String?,
+    connectionType: ConnectionType = ConnectionType.WIFI,
+    locationTag: String? = null,
     isDemo: Boolean,
     isTransmitting: Boolean,
     lastResultText: String?,
@@ -81,6 +86,7 @@ private fun RemoteScreenContent(
     onCommand: ((RemoteCommand) -> Unit)?,
     onConfirmPending: () -> Unit,
     onDismissConfirmation: () -> Unit,
+    onToggleConnectionType: (() -> Unit)? = null,
 ) {
     fun supports(command: RemoteCommand) = capabilities == null || command in capabilities.supportedCommands
     val title = deviceName ?: stringResource(if (type == DeviceType.TV) R.string.tv_remote else R.string.projector_remote)
@@ -97,15 +103,35 @@ private fun RemoteScreenContent(
     }
 
     Page(title, onBack) {
-        if (isDemo) {
-            StatusIndicator(stringResource(R.string.demo_short), icon = Icons.Default.Visibility)
-            Text(stringResource(R.string.demo_detail), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        } else {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             StatusIndicator(
-                text = stringResource(R.string.status_confirmed),
-                available = true,
-                icon = Icons.Default.SettingsRemote
+                text = if (isDemo) stringResource(R.string.demo_short) else stringResource(R.string.status_confirmed),
+                available = !isDemo,
+                icon = if (connectionType == ConnectionType.WIFI) Icons.Default.Wifi else Icons.Default.SettingsRemote
             )
+            if (onToggleConnectionType != null) {
+                AssistChip(
+                    onClick = onToggleConnectionType,
+                    label = {
+                        Text("Método: ${if (connectionType == ConnectionType.WIFI) "Wi-Fi" else "IR"}")
+                    },
+                    leadingIcon = {
+                        Icon(
+                            if (connectionType == ConnectionType.WIFI) Icons.Default.Wifi else Icons.Default.SettingsRemote,
+                            null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                )
+            }
+        }
+
+        if (locationTag != null && locationTag.isNotBlank()) {
+            Text("Ubicación: $locationTag", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
         }
 
         AnimatedVisibility(visible = lastResultText != null) {
