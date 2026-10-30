@@ -135,13 +135,6 @@ class SsdpDiscovery(private val context: Context) {
                 port = 4352
                 name = "PJLink Projector ($ipAddress)"
             }
-            lowerContent.contains("epson") -> {
-                protocolType = ProtocolType.PJLINK
-                brand = DeviceBrand.EPSON
-                deviceType = DeviceType.PROJECTOR
-                port = 4352
-                name = "Epson Projector ($ipAddress)"
-            }
             lowerContent.contains("dial") || lowerContent.contains("googlecast") || lowerContent.contains("androidtv") -> {
                 protocolType = ProtocolType.ANDROID_TV
                 brand = DeviceBrand.OTHER

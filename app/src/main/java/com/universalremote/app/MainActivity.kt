@@ -21,6 +21,7 @@ import androidx.navigation.compose.*
 import com.universalremote.core.designsystem.*
 import com.universalremote.core.model.ConnectionType
 import com.universalremote.core.model.Device
+import com.universalremote.core.model.DeviceBrand
 import com.universalremote.core.model.DeviceType
 import com.universalremote.core.model.ThemePreference
 import com.universalremote.feature.home.*
@@ -53,6 +54,7 @@ class MainActivity : ComponentActivity() {
             val irSetup: IrSetupViewModel = viewModel()
             val networkDiscovery: NetworkDiscoveryViewModel = viewModel()
             val remote: RemoteViewModel = viewModel()
+            val epsonRemote: EpsonIrRemoteViewModel = viewModel()
             val appearance by settings.state.collectAsStateWithLifecycle()
             val dark = appearance.theme == ThemePreference.DARK ||
                 (appearance.theme == ThemePreference.SYSTEM && isSystemInDarkTheme())
@@ -68,10 +70,12 @@ class MainActivity : ComponentActivity() {
                 val back: () -> Unit = { nav.popBackStack() }
                 val preview: (DeviceType) -> Unit = { type ->
                     remote.loadDevice(null)
+                    epsonRemote.loadDevice(null)
                     nav.open(if (type == DeviceType.TV) Destination.REMOTE_TV else Destination.REMOTE_PROJECTOR)
                 }
                 val openDevice: (Device) -> Unit = { device ->
                     remote.loadDevice(device.id)
+                    epsonRemote.loadDevice(device.id)
                     nav.open(if (device.deviceType == DeviceType.TV) Destination.REMOTE_TV else Destination.REMOTE_PROJECTOR)
                 }
                 Scaffold(contentWindowInsets = WindowInsets(0, 0, 0, 0), bottomBar = {
@@ -86,7 +90,7 @@ class MainActivity : ComponentActivity() {
                                 viewModel = home,
                                 onDevicesNav = { nav.openTab(MainTab.DEVICES) },
                                 onAddNav = { nav.open(Destination.ADD) },
-                                onDiscoveryNav = { nav.open(Destination.SETUP) },
+                                onDiscoveryNav = { networkDiscovery.startDiscovery(); nav.open(Destination.SETUP) },
                                 onSettingsNav = { nav.openTab(MainTab.SETTINGS) },
                                 onRemotePreview = preview,
                                 onOpenDevice = openDevice
@@ -107,7 +111,7 @@ class MainActivity : ComponentActivity() {
                             AddDeviceScreen(
                                 viewModel = add,
                                 onBack = back,
-                                onSearchWifi = { nav.open(Destination.SETUP) },
+                                onSearchWifi = { networkDiscovery.configure(state.type, state.brand); nav.open(Destination.SETUP) },
                                 onSetupIr = { type ->
                                     irSetup.initProfiles(type, state.brand)
                                     nav.open(Destination.IR_SETUP)
@@ -130,6 +134,7 @@ class MainActivity : ComponentActivity() {
                                 onBack = back,
                                 onDeviceSaved = { deviceId, type ->
                                     remote.loadDevice(deviceId)
+                                    epsonRemote.loadDevice(deviceId)
                                     nav.open(if (type == DeviceType.TV) Destination.REMOTE_TV else Destination.REMOTE_PROJECTOR)
                                 }
                             )
@@ -144,13 +149,33 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable(Destination.REMOTE_PROJECTOR.name) {
-                            RemoteScreen(
-                                viewModel = remote,
-                                onBack = back,
-                                onOpenCustomize = { nav.open(Destination.CUSTOMIZE_REMOTE) },
-                                onOpenQuickActions = { nav.open(Destination.QUICK_ACTIONS) },
-                                onOpenLocations = { nav.open(Destination.LOCATIONS) }
-                            )
+                            val remoteState by remote.state.collectAsStateWithLifecycle()
+                            val epsonState by epsonRemote.state.collectAsStateWithLifecycle()
+                            if (remoteState.brand == DeviceBrand.EPSON &&
+                                remoteState.connectionType == ConnectionType.INFRARED
+                            ) {
+                                EpsonIrRemoteScreen(
+                                    viewModel = epsonRemote,
+                                    onBack = back,
+                                    onOpenWizard = {
+                                        irSetup.initProfiles(DeviceType.PROJECTOR, DeviceBrand.EPSON)
+                                        irSetup.selectEpsonModel(
+                                            if (epsonState.profileId == "EPSON_EB_L260F") "EB-L260F" else "PowerLite 118"
+                                        )
+                                        nav.open(Destination.IR_SETUP)
+                                    },
+                                    onOpenCustomize = { nav.open(Destination.CUSTOMIZE_REMOTE) },
+                                    onOpenQuickActions = { nav.open(Destination.QUICK_ACTIONS) },
+                                )
+                            } else {
+                                RemoteScreen(
+                                    viewModel = remote,
+                                    onBack = back,
+                                    onOpenCustomize = { nav.open(Destination.CUSTOMIZE_REMOTE) },
+                                    onOpenQuickActions = { nav.open(Destination.QUICK_ACTIONS) },
+                                    onOpenLocations = { nav.open(Destination.LOCATIONS) }
+                                )
+                            }
                         }
                         composable(Destination.SETTINGS.name) { SettingsScreen(settings, BuildConfig.VERSION_NAME, BuildConfig.STAGE, back) }
                         composable(Destination.LOCATIONS.name) {

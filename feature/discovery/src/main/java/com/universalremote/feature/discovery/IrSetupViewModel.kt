@@ -37,6 +37,7 @@ data class IrSetupUiState(
     val isSaved: Boolean = false,
     val savedDeviceId: String? = null,
     val errorMessage: String? = null,
+    val epsonModel: String = "PowerLite 118",
 )
 
 @HiltViewModel
@@ -61,13 +62,14 @@ class IrSetupViewModel @Inject constructor(
 
     fun initProfiles(type: DeviceType, brand: DeviceBrand) {
         val availability = availabilityProvider.availability()
-        val effectiveBrand = if (type == DeviceType.PROJECTOR && brand == DeviceBrand.LG) DeviceBrand.EPSON else brand
+        val effectiveBrand = brand
         var profiles = infraredRepository.profiles.filter { it.brand == effectiveBrand && it.deviceType == type }
-        if (profiles.isEmpty()) {
-            profiles = infraredRepository.profiles.filter { it.brand == effectiveBrand }
-        }
         val pending = infraredRepository.pendingBrands.firstOrNull { it.brand == effectiveBrand && it.deviceType == type }
-        val selected = profiles.firstOrNull()
+        val selected = if (effectiveBrand == DeviceBrand.EPSON) {
+            profiles.firstOrNull { it.id == epsonProfileId(mutableState.value.epsonModel) } ?: profiles.firstOrNull()
+        } else {
+            profiles.firstOrNull()
+        }
 
         mutableState.update {
             it.copy(
@@ -77,21 +79,29 @@ class IrSetupViewModel @Inject constructor(
                 availableProfiles = profiles,
                 pendingBrandInfo = pending,
                 selectedProfile = selected,
-                customDeviceName = "${effectiveBrand.id} ${if (type == DeviceType.TV) "TV" else "Proyector"}",
+                customDeviceName = if (effectiveBrand == DeviceBrand.EPSON) {
+                    "Epson ${it.epsonModel}"
+                } else {
+                    "${effectiveBrand.id} ${if (type == DeviceType.TV) "TV" else "Proyector"}"
+                },
                 testStep = IrTestStep.SELECT_PROFILE,
                 lastTransmissionMessage = null,
                 validationStatus = IrValidationStatus.UNVERIFIED,
+                transmissionSuccess = false,
+                isSaved = false,
             )
         }
     }
 
     fun selectProfile(profile: IrProfile) {
+        if (mutableState.value.isTransmitting || profile !in mutableState.value.availableProfiles) return
         mutableState.update {
             it.copy(
                 selectedProfile = profile,
                 testStep = IrTestStep.SELECT_PROFILE,
                 lastTransmissionMessage = null,
                 validationStatus = IrValidationStatus.UNVERIFIED,
+                transmissionSuccess = false,
             )
         }
     }
@@ -102,7 +112,7 @@ class IrSetupViewModel @Inject constructor(
         if (current.isTransmitting) return
 
         mutableState.update {
-            it.copy(isTransmitting = true, errorMessage = null, testStep = IrTestStep.TESTING_COMMAND)
+            it.copy(isTransmitting = true, transmissionSuccess = false, validationStatus = IrValidationStatus.UNVERIFIED, errorMessage = null, testStep = IrTestStep.TESTING_COMMAND)
         }
 
         viewModelScope.launch {
@@ -114,7 +124,10 @@ class IrSetupViewModel @Inject constructor(
                         it.copy(
                             isTransmitting = false,
                             transmissionSuccess = true,
-                            lastTransmissionMessage = "Señal enviada localmente ($khz kHz). Nota: ConsumerIrManager no proporciona confirmación de recepción del equipo.",
+                            lastTransmissionMessage = buildString {
+                                append("Comando ${profile.testCommand.name} transmitido en $khz kHz. IR no confirma recepción: comprueba la respuesta del proyector.")
+                                profile.testNote?.let { append(" ").append(it) }
+                            },
                             validationStatus = IrValidationStatus.UNVERIFIED,
                         )
                     }
@@ -149,6 +162,7 @@ class IrSetupViewModel @Inject constructor(
     }
 
     fun confirmResponse(responded: Boolean) {
+        if (!mutableState.value.transmissionSuccess || mutableState.value.isTransmitting) return
         val profile = mutableState.value.selectedProfile ?: return
         viewModelScope.launch {
             infraredRepository.confirm(profile.id, responded)
@@ -176,8 +190,32 @@ class IrSetupViewModel @Inject constructor(
                 testStep = IrTestStep.SELECT_PROFILE,
                 lastTransmissionMessage = null,
                 validationStatus = IrValidationStatus.UNVERIFIED,
+                transmissionSuccess = false,
             )
         }
+    }
+
+    fun selectEpsonModel(model: String) {
+        if (mutableState.value.isTransmitting || model !in EPSON_MODELS) return
+        val profile = mutableState.value.availableProfiles.firstOrNull { it.id == epsonProfileId(model) }
+        mutableState.update {
+            it.copy(
+                epsonModel = model,
+                selectedProfile = profile ?: it.selectedProfile,
+                customDeviceName = "Epson $model",
+                transmissionSuccess = false,
+                validationStatus = IrValidationStatus.UNVERIFIED,
+                testStep = IrTestStep.SELECT_PROFILE,
+                lastTransmissionMessage = null,
+            )
+        }
+    }
+
+    private fun epsonProfileId(model: String): String = when (model) {
+        "PowerLite 118" -> "EPSON_POWERLITE_118_ORIGINAL_IR"
+        "EB-L260F" -> "EPSON_EB_L260F"
+        "EMP822H" -> "epson-emp822h-v1"
+        else -> ""
     }
 
     fun setDeviceName(name: String) {
@@ -190,6 +228,7 @@ class IrSetupViewModel @Inject constructor(
 
     fun saveDevice(onSaved: (String) -> Unit) {
         val current = mutableState.value
+        if (current.validationStatus != IrValidationStatus.CONFIRMED_BY_USER || current.isSaved) return
         val profile = current.selectedProfile ?: return
 
         val newId = "dev-" + UUID.randomUUID().toString().take(8)
@@ -197,7 +236,7 @@ class IrSetupViewModel @Inject constructor(
             id = newId,
             name = current.customDeviceName.ifBlank { "${current.brand.id} ${if (current.deviceType == DeviceType.TV) "TV" else "Proyector"}" },
             brand = current.brand,
-            model = profile.family,
+            model = if (current.brand == DeviceBrand.EPSON) current.epsonModel else profile.family,
             deviceType = current.deviceType,
             connectionType = ConnectionType.INFRARED,
             irProfileId = profile.id,
@@ -215,5 +254,9 @@ class IrSetupViewModel @Inject constructor(
                 mutableState.update { it.copy(errorMessage = "No se pudo guardar el dispositivo.") }
             }
         }
+    }
+
+    companion object {
+        val EPSON_MODELS = listOf("PowerLite 118", "EB-L260F", "EMP822H")
     }
 }

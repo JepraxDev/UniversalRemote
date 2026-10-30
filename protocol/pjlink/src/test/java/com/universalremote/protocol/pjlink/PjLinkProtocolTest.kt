@@ -29,7 +29,9 @@ class PjLinkProtocolTest {
         val caps = protocol.capabilities(device)
         assertTrue(caps.supportedCommands.contains(RemoteCommand.POWER))
         assertTrue(caps.supportedCommands.contains(RemoteCommand.POWER_ON))
-        assertTrue(caps.supportedCommands.contains(RemoteCommand.HDMI))
+        assertFalse(caps.supportedCommands.contains(RemoteCommand.HDMI))
+        assertFalse(caps.supportedCommands.contains(RemoteCommand.FREEZE))
+        assertFalse(caps.supportedCommands.contains(RemoteCommand.VOLUME_UP))
         assertTrue(caps.supportedCommands.contains(RemoteCommand.AV_MUTE))
     }
 

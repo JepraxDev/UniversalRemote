@@ -41,6 +41,20 @@ class IrSetupViewModelTest {
                 ),
                 source = "test",
                 testCommand = RemoteCommand.MENU
+            ),
+            IrProfile(
+                id = "EPSON_POWERLITE_118_ORIGINAL_IR",
+                brand = DeviceBrand.EPSON,
+                deviceType = DeviceType.PROJECTOR,
+                family = "PowerLite 118",
+                protocol = "NECext",
+                carrierHz = 38000,
+                commands = mapOf(
+                    RemoteCommand.MENU to IrSignal(38000, listOf(9000, 4500, 560)),
+                    RemoteCommand.POWER to IrSignal(38000, listOf(9000, 4500, 560)),
+                ),
+                source = "test",
+                testCommand = RemoteCommand.MENU
             )
         )
         override val pendingBrands = listOf(
@@ -182,6 +196,10 @@ class IrSetupViewModelTest {
 
         vm.setDeviceName("Mi Televisor LG")
         vm.setRoomName("Sala")
+        vm.sendTestCommand()
+        advanceUntilIdle()
+        vm.confirmResponse(true)
+        advanceUntilIdle()
 
         var savedId: String? = null
         vm.saveDevice { id -> savedId = id }
@@ -194,5 +212,32 @@ class IrSetupViewModelTest {
         assertEquals("Sala", savedDevice.roomName)
         assertEquals(ConnectionType.INFRARED, savedDevice.connectionType)
         assertEquals("lg-profile-1", savedDevice.irProfileId)
+    }
+
+    @Test
+    fun cannotSaveOrConfirmWithoutPhysicalTest() = runTest(dispatcher) {
+        val vm = IrSetupViewModel(SavedStateHandle(), deviceRepository, infraredRepository) { IrAvailability.Available }
+        vm.confirmResponse(true)
+        vm.saveDevice { fail("Unconfirmed profile saved") }
+        advanceUntilIdle()
+        assertTrue(deviceRepository.devices.isEmpty())
+        assertTrue(infraredRepository.confirmedCalls.isEmpty())
+    }
+
+    @Test
+    fun epsonWizardSelectsPowerLite118AndTestsMenuOnly() = runTest(dispatcher) {
+        val saved = SavedStateHandle(mapOf("type" to "PROJECTOR", "brand" to "EPSON"))
+        val vm = IrSetupViewModel(saved, deviceRepository, infraredRepository) { IrAvailability.Available }
+        advanceUntilIdle()
+
+        assertEquals("EPSON_POWERLITE_118_ORIGINAL_IR", vm.state.value.selectedProfile?.id)
+        assertEquals(RemoteCommand.MENU, vm.state.value.selectedProfile?.testCommand)
+
+        vm.sendTestCommand()
+        advanceUntilIdle()
+
+        assertEquals(listOf("EPSON_POWERLITE_118_ORIGINAL_IR"), infraredRepository.testCalls)
+        assertEquals(IrTestStep.TESTING_COMMAND, vm.state.value.testStep)
+        assertFalse(vm.state.value.lastTransmissionMessage!!.contains("correctamente", ignoreCase = true))
     }
 }

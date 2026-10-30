@@ -1,0 +1,43 @@
+[
+  {
+    "id": "epson-powerlite-118",
+    "brand": "EPSON",
+    "model": "PowerLite 118",
+    "family": "PowerLite",
+    "connections": ["LAN_RJ45", "WIFI_OPTIONAL"],
+    "protocols": ["PJLINK", "WEB_CONTROL"],
+    "commands": ["POWER", "POWER_ON", "POWER_OFF", "AV_MUTE", "MUTE"],
+    "capabilities": ["POWER_STATUS", "INPUT_LIST", "INPUT_SELECTION", "ERROR_STATUS", "LAMP_HOURS", "WEB_REMOTE"],
+    "sources": ["HDMI 1", "HDMI 2", "Computer", "Video", "USB", "USB Display", "LAN"],
+    "authentication": "PJLink: challenge MD5 si está habilitado. Web: EPSONWEB/EPSONREMOTE, gestionado por navegador.",
+    "verification": "DOCUMENTED; IMPLEMENTED_PJLINK; PHYSICAL_PENDING",
+    "irProfileIds": [],
+    "escVp21": "PENDING_MODEL_TRANSPORT_DOCUMENTATION",
+    "references": [
+      "https://epson.com.co/Soporte/Proyectores/Epson-PowerLite/Epson-PowerLite-118/s/SPT_V11HA03020",
+      "https://files.support.epson.com/docid/cpd5/cpd59681/source/network/tasks/selecting_wired_network_settings.html",
+      "https://files.support.epson.com/docid/cpd5/cpd59681/source/network/tasks/controlling_web_browser.html",
+      "https://files.support.epson.com/docid/cpd5/cpd59681/source/network/concepts/wireless_network_projection_intro.html"
+    ]
+  },
+  {
+    "id": "epson-eb-l260f",
+    "brand": "EPSON",
+    "model": "EB-L260F",
+    "family": "EB-L Series",
+    "connections": ["LAN_RJ45", "WIFI_OPTIONAL"],
+    "protocols": ["PJLINK", "WEB_CONTROL"],
+    "commands": ["POWER", "POWER_ON", "POWER_OFF", "AV_MUTE", "MUTE"],
+    "capabilities": ["POWER_STATUS", "INPUT_LIST", "INPUT_SELECTION", "ERROR_STATUS", "LAMP_HOURS", "WEB_REMOTE"],
+    "sources": ["HDMI 1", "HDMI 2", "Computer", "USB", "LAN", "Screen Mirroring"],
+    "authentication": "PJLink: challenge MD5 si está habilitado. Web: credenciales EPSONWEB/EPSONREMOTE configurables en el proyector.",
+    "verification": "DOCUMENTED; IMPLEMENTED_PJLINK; PHYSICAL_PENDING",
+    "irProfileIds": ["EPSON_EB_L260F"],
+    "escVp21": "DOCUMENTED_KEY_TABLE; TRANSPORT_NOT_IMPLEMENTED",
+    "references": [
+      "https://files.support.epson.com/docid/cpd6/cpd63079.pdf",
+      "https://download3.ebz.epson.net/dsc/f/03/00/14/39/51/b4da59a9bae8a67e69246ac6afb5a5f2c59a6c4d/Specifications_EB-L260F_EN_Rev1.0.pdf",
+      "https://github.com/Lucaslhm/Flipper-IRDB/blob/main/Projectors/Epson/Epson_EB-L260F.ir"
+    ]
+  }
+]

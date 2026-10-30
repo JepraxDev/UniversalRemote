@@ -22,9 +22,27 @@ data class IrProfile(
     val commands: Map<RemoteCommand, IrSignal>,
     val source: String,
     val testCommand: RemoteCommand,
+    val commandInfo: Map<RemoteCommand, IrCommandInfo> = emptyMap(),
+    /** Extra explanation when the requested first test command has no verified capture. */
+    val testNote: String? = null,
 ) {
     val capabilities get() = DeviceCapabilities(commands.keys.toSet())
 }
+
+/** Provenance of one command. Physical confirmation is always per projector/user. */
+enum class IrCommandVerification {
+    OFFICIAL_DOCUMENTED,
+    COMMUNITY_CAPTURED,
+    CONFIRMED_BY_USER,
+}
+
+data class IrCommandInfo(
+    val function: String,
+    val protocol: String,
+    val source: String,
+    val verification: IrCommandVerification,
+    val note: String? = null,
+)
 /** This is a user assertion for one target, not manufacturer-wide compatibility. */
 enum class IrValidationStatus { UNVERIFIED, CONFIRMED_BY_USER, INCOMPATIBLE }
 data class IrAssessment(

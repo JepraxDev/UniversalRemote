@@ -77,12 +77,10 @@ class MdnsDiscovery(private val context: Context) {
             }
         }
 
-        delay(timeoutMs)
-
-        for ((_, listener) in listeners) {
-            try {
-                nsdManager.stopServiceDiscovery(listener)
-            } catch (_: Exception) {}
+        try { delay(timeoutMs) } finally {
+            for ((_, listener) in listeners) {
+                try { nsdManager.stopServiceDiscovery(listener) } catch (_: Exception) {}
+            }
         }
 
         discoveredMap.values.toList()
@@ -118,13 +116,6 @@ class MdnsDiscovery(private val context: Context) {
                 deviceType = DeviceType.PROJECTOR
                 resolvedPort = if (port > 0) port else 4352
                 displayName = "$serviceName ($host)"
-            }
-            lowerName.contains("epson") -> {
-                protocolType = ProtocolType.PJLINK
-                brand = DeviceBrand.EPSON
-                deviceType = DeviceType.PROJECTOR
-                resolvedPort = if (port > 0) port else 4352
-                displayName = "Epson Projector ($serviceName)"
             }
             lowerName.contains("samsung") -> {
                 protocolType = ProtocolType.SAMSUNG_WS

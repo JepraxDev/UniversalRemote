@@ -208,7 +208,8 @@ class ProtocolRegistryImpl(
         tokenSaver = { deviceId, token -> secureStorage.saveToken(deviceId, token) }
     )
     private val pjlink = PjLinkProtocol(
-        passwordStorage = { secureStorage.getToken(it) }
+        passwordStorage = { secureStorage.getToken(it) },
+        passwordSaver = { id, password -> secureStorage.saveToken(id, password) }
     )
     private val samsung = SamsungWsProtocol(
         tokenStorage = { secureStorage.getToken(it) },
@@ -234,7 +235,8 @@ class ProtocolRegistryImpl(
             when {
                 device.brand == DeviceBrand.LG -> ProtocolType.LG_WEBOS
                 device.brand == DeviceBrand.SAMSUNG -> ProtocolType.SAMSUNG_WS
-                device.brand in listOf(DeviceBrand.EPSON, DeviceBrand.BENQ, DeviceBrand.VIEWSONIC, DeviceBrand.OPTOMA, DeviceBrand.NEC) -> ProtocolType.PJLINK
+                device.brand == DeviceBrand.EPSON -> ProtocolType.UNKNOWN
+                device.brand in listOf(DeviceBrand.BENQ, DeviceBrand.VIEWSONIC, DeviceBrand.OPTOMA, DeviceBrand.NEC) -> ProtocolType.PJLINK
                 device.brand in listOf(DeviceBrand.XIAOMI, DeviceBrand.SONY, DeviceBrand.TCL, DeviceBrand.HISENSE, DeviceBrand.PHILIPS) ||
                         fullName.contains("ANDROID") || fullName.contains("MITV") || fullName.contains("GOOGLE") -> ProtocolType.ANDROID_TV
                 else -> ProtocolType.ANDROID_TV
@@ -247,6 +249,8 @@ class ProtocolRegistryImpl(
 @Module
 @InstallIn(SingletonComponent::class)
 object DataModule {
+    @Provides @Singleton
+    fun epsonRegistry(@ApplicationContext context: Context) = com.universalremote.core.network.EpsonDeviceRegistry(context)
     @Provides @Singleton
     fun database(@ApplicationContext context: Context): DeviceDatabase =
         Room.databaseBuilder(context, DeviceDatabase::class.java, "universal-remote.db")

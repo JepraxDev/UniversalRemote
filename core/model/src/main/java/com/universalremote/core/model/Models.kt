@@ -146,6 +146,10 @@ enum class RemoteCommand {
     ASPECT_RATIO, COLOR_MODE, BRIGHTNESS, CONTRAST, ECO_MODE, AUTO_SETUP, KEYSTONE,
     ZOOM_IN, ZOOM_OUT, FOCUS_NEAR, FOCUS_FAR,
     LAMP_STATUS, LAMP_HOURS,
+    // Epson projector remote (2198635 / 219863500). NUM_MODIFIER is a
+    // remote-control modifier only: it has no standalone IR frame.
+    SOURCE_SEARCH, COMPUTER, USB, ID, USER, DEFAULT, SPLIT, E_ZOOM_IN, E_ZOOM_OUT,
+    NUM_MODIFIER,
 }
 
 data class DeviceCapabilities(val supportedCommands: Set<RemoteCommand> = emptySet())

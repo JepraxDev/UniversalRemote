@@ -39,12 +39,8 @@ class SecureStorageManager(context: Context) {
     }
 
     fun saveToken(deviceId: String, token: String) {
-        try {
-            val encrypted = encrypt(token)
-            prefs.edit().putString(deviceId, encrypted).apply()
-        } catch (_: Exception) {
-            prefs.edit().putString(deviceId, token).apply()
-        }
+        val encrypted = encrypt(token)
+        check(prefs.edit().putString(deviceId, encrypted).commit()) { "No se pudo guardar la credencial cifrada" }
     }
 
     fun getToken(deviceId: String): String? {
@@ -52,7 +48,7 @@ class SecureStorageManager(context: Context) {
         return try {
             decrypt(stored)
         } catch (_: Exception) {
-            stored
+            null
         }
     }
 

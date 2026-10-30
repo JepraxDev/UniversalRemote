@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.cancelAndJoin
 
 class CompositeNetworkDeviceDiscovery(
     context: Context,
@@ -22,6 +24,21 @@ class CompositeNetworkDeviceDiscovery(
     private val services = AndroidNetworkServices(context)
     private val ssdp = SsdpDiscovery(context)
     private val mdns = MdnsDiscovery(context)
+    private val epson = EpsonDiscoveryService(context)
+
+    override fun diagnostics(): String = epson.environment()
+
+    override suspend fun startLocalSearch() {
+        cancel()
+        mutableState.value = DiscoveryState.Searching
+        activeJob = scope.launch {
+            try {
+                val details = epson.discover()
+                mutableState.value = DiscoveryState.Results(details.map { it.toDevice() }, details)
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { mutableState.value = DiscoveryState.Failed(DiscoveryError.PLATFORM_FAILURE) }
+        }
+    }
 
     private var activeJob: Job? = null
 
@@ -59,6 +76,7 @@ class CompositeNetworkDeviceDiscovery(
                     devices = devicesList,
                     details = detailsList
                 )
+            } catch (e: CancellationException) { throw e
             } catch (_: Exception) {
                 mutableState.value = DiscoveryState.Failed(DiscoveryError.PLATFORM_FAILURE)
             }
@@ -66,7 +84,7 @@ class CompositeNetworkDeviceDiscovery(
     }
 
     override suspend fun cancel() {
-        activeJob?.cancel()
+        activeJob?.cancelAndJoin()
         activeJob = null
         if (mutableState.value == DiscoveryState.Searching) {
             mutableState.value = DiscoveryState.Cancelled

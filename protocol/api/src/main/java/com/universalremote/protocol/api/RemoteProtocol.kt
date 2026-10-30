@@ -59,6 +59,17 @@ interface NetworkRemoteProtocol : RemoteProtocol {
     suspend fun probeEndpoint(endpoint: NetworkEndpoint): Boolean
 }
 
+data class ProjectorInfo(
+    val manufacturer: String, val model: String, val name: String, val pjClass: String,
+    val power: String, val inputs: List<String>, val errors: String, val lamps: String,
+    val inputNames: Map<String, String> = emptyMap()
+)
+
+interface ProjectorProtocol : RemoteProtocol {
+    suspend fun information(device: Device): ProjectorInfo
+    suspend fun selectInput(device: Device, input: String): CommandResult
+}
+
 interface ProtocolRegistry {
     fun getProtocol(protocolType: ProtocolType): RemoteProtocol?
     fun getProtocolForDevice(device: Device): RemoteProtocol?

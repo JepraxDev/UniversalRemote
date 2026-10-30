@@ -84,7 +84,7 @@ class AndroidInfraredControllerTest {
             controller.transmit(38_000, listOf(9000, 4500, 560))
         )
     }
-    @Test fun rapidTransmissionsAreRejectedWithBusy() = runTest {
+    @Test fun successiveTransmissionsWaitForGapInsteadOfBeingRejected() = runTest {
         var time = 1_000_000_000L
         val controller = AndroidInfraredController(
             hasEmitter = { true },
@@ -92,7 +92,7 @@ class AndroidInfraredControllerTest {
             nanoTime = { time }
         )
         assertEquals(IrResult.Success(Unit), controller.transmit(38_000, listOf(9000, 4500, 560)))
-        assertEquals(IrResult.Failure(IrError.BUSY), controller.transmit(38_000, listOf(9000, 4500, 560)))
+        assertEquals(IrResult.Success(Unit), controller.transmit(38_000, listOf(9000, 4500, 560)))
         time += 300_000_000L
         assertEquals(IrResult.Success(Unit), controller.transmit(38_000, listOf(9000, 4500, 560)))
     }

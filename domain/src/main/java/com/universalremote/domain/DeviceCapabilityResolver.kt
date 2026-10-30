@@ -9,6 +9,7 @@ class DeviceCapabilityResolver(
 ) {
 
     fun resolve(device: Device): DeviceCapabilities {
+        if (device.brand == DeviceBrand.EPSON && device.connectionType == ConnectionType.WIFI) return DeviceCapabilities()
         if (device.connectionType == ConnectionType.INFRARED) {
             val profileId = device.irProfileId
             if (profileId != null) {

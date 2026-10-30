@@ -84,6 +84,17 @@ class DeviceCompatibilityServiceTest {
     }
 
     @Test
+    fun epsonModelsAreListedIndependentlyAndPointToTheirOwnIrProfiles() {
+        val powerLite = DeviceCatalog.findModel(DeviceBrand.EPSON, DeviceType.PROJECTOR, "PowerLite 118")
+        val ebL260F = DeviceCatalog.findModel(DeviceBrand.EPSON, DeviceType.PROJECTOR, "EB-L260F")
+        assertNotNull(powerLite)
+        assertNotNull(ebL260F)
+        assertEquals("EPSON_POWERLITE_118_ORIGINAL_IR", powerLite!!.defaultIrProfileId)
+        assertEquals("EPSON_EB_L260F", ebL260F!!.defaultIrProfileId)
+        assertNotEquals(powerLite.defaultIrProfileId, ebL260F.defaultIrProfileId)
+    }
+
+    @Test
     fun getCompatibilityStatusReturnsVerifiedForLg() {
         val status = service.getCompatibilityStatus(DeviceBrand.LG, DeviceType.TV)
         assertEquals(CompatibilityStatus.VERIFIED_PHYSICAL, status)

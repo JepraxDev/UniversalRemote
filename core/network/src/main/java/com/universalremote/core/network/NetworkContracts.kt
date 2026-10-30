@@ -37,6 +37,8 @@ enum class DiscoveryError {
 interface NetworkDeviceDiscovery {
     val state: StateFlow<DiscoveryState>
     suspend fun start()
+    suspend fun startLocalSearch() { start() }
+    fun diagnostics(): String = "Diagnóstico de red no disponible"
     suspend fun cancel()
 }
 

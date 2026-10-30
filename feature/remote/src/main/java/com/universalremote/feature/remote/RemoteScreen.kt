@@ -22,6 +22,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.universalremote.core.designsystem.*
 import com.universalremote.core.designsystem.R
 import com.universalremote.core.model.*
+import com.universalremote.protocol.api.ProjectorInfo
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.net.Uri
 
 @Composable
 fun RemoteScreen(
@@ -52,7 +56,14 @@ fun RemoteScreen(
         onSetRemoteMode = viewModel::setRemoteMode,
         onOpenCustomize = onOpenCustomize,
         onOpenQuickActions = onOpenQuickActions,
-        onOpenLocations = onOpenLocations
+        onOpenLocations = onOpenLocations,
+        connectionMessage = state.connectionMessage,
+        networkConnected = state.networkConnected,
+        webControlIp = state.webControlIp,
+        projectorInfo = state.projectorInfo,
+        onRefresh = viewModel::refreshProjectorInfo,
+        onReconnect = { viewModel.loadDevice() },
+        onInput = viewModel::selectProjectorInput
     )
 }
 
@@ -97,11 +108,19 @@ private fun RemoteScreenContent(
     onSetRemoteMode: ((RemoteMode) -> Unit)? = null,
     onOpenCustomize: (() -> Unit)? = null,
     onOpenQuickActions: (() -> Unit)? = null,
-    onOpenLocations: (() -> Unit)? = null
+    onOpenLocations: (() -> Unit)? = null,
+    connectionMessage: String = "Sin comprobar",
+    networkConnected: Boolean = false,
+    webControlIp: String? = null,
+    projectorInfo: ProjectorInfo? = null,
+    onRefresh: (() -> Unit)? = null,
+    onReconnect: (() -> Unit)? = null,
+    onInput: ((String) -> Unit)? = null
 ) {
     fun supports(command: RemoteCommand) = capabilities == null || command in capabilities.supportedCommands
     val title = deviceName ?: stringResource(if (type == DeviceType.TV) R.string.tv_remote else R.string.projector_remote)
     val buttonEnabled = !isTransmitting && !isDemo && onCommand != null
+    val context = LocalContext.current
 
     if (pendingConfirmationCommand != null) {
         ConfirmationDialog(
@@ -161,8 +180,8 @@ private fun RemoteScreenContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     StatusIndicator(
-                        text = if (isDemo) stringResource(R.string.demo_short) else stringResource(R.string.status_confirmed),
-                        available = !isDemo,
+                        text = if (type == DeviceType.PROJECTOR && connectionType == ConnectionType.WIFI) connectionMessage else if (isDemo) stringResource(R.string.demo_short) else "Configurado",
+                        available = if (type == DeviceType.PROJECTOR && connectionType == ConnectionType.WIFI) networkConnected else !isDemo,
                         icon = if (connectionType == ConnectionType.WIFI) Icons.Default.Wifi else Icons.Default.SettingsRemote
                     )
                     if (onToggleConnectionType != null) {
@@ -179,6 +198,29 @@ private fun RemoteScreenContent(
                                 )
                             }
                         )
+                    }
+                }
+
+                if (type == DeviceType.PROJECTOR && connectionType == ConnectionType.WIFI) {
+                    onReconnect?.let { TextButton(onClick = it) { Text("Reconectar / Diagnosticar conexión") } }
+                    webControlIp?.let { ip ->
+                        Text("IP: $ip")
+                        Button(onClick = {
+                            try { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("http://$ip/"))) }
+                            catch (_: android.content.ActivityNotFoundException) { }
+                        }) { Text("Abrir Epson Web Control") }
+                        Text("Menú, navegación, fuentes y funciones adicionales disponibles en la interfaz oficial del proyector.", style = MaterialTheme.typography.bodySmall)
+                    }
+                    onRefresh?.let { TextButton(onClick = it) { Text("Consultar información, lámpara y errores") } }
+                    projectorInfo?.let { info ->
+                        Text("${info.manufacturer} ${info.model} · ${info.name}\nPJLink clase ${info.pjClass}\nEstado de alimentación: ${info.power} (0 espera, 1 encendido, 2 enfriando, 3 calentando)\nErrores: ${info.errors} (ventilador/lámpara/temperatura/tapa/filtro/otros; 0 normal, 1 aviso, 2 error)\nLámparas [horas, encendida]: ${info.lamps}", style = MaterialTheme.typography.bodySmall)
+                        Text("Entradas anunciadas por el proyector")
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            info.inputs.forEach { input ->
+                                val label = when (input.firstOrNull()) { '1' -> "RGB"; '2' -> "Video"; '3' -> "Digital"; '4' -> "Almacenamiento"; '5' -> "Red"; else -> "Entrada" }
+                                OutlinedButton(onClick = { onInput?.invoke(input) }, enabled = !isTransmitting && networkConnected) { Text("${info.inputNames[input] ?: label} ($input)") }
+                            }
+                        }
                     }
                 }
 

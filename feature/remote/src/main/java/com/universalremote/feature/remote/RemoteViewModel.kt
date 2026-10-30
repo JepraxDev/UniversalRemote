@@ -7,17 +7,20 @@ import com.universalremote.core.model.*
 import com.universalremote.domain.*
 import com.universalremote.protocol.api.CommandResult
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.universalremote.protocol.api.DevicePairingState
+import com.universalremote.protocol.api.ProjectorInfo
+import kotlinx.coroutines.CancellationException
 
 data class RemoteUiState(
     val deviceId: String? = null,
     val deviceName: String? = null,
+    val brand: DeviceBrand = DeviceBrand.LG,
     val deviceType: DeviceType = DeviceType.TV,
     val connectionType: ConnectionType = ConnectionType.WIFI,
     val remoteMode: RemoteMode = RemoteMode.BASIC,
@@ -30,6 +33,10 @@ data class RemoteUiState(
     val lastResultText: String? = null,
     val isError: Boolean = false,
     val pendingConfirmationCommand: RemoteCommand? = null,
+    val connectionMessage: String = "Sin comprobar",
+    val networkConnected: Boolean = false,
+    val webControlIp: String? = null,
+    val projectorInfo: ProjectorInfo? = null,
 )
 
 @HiltViewModel
@@ -104,14 +111,36 @@ class RemoteViewModel @Inject constructor(
                     it.copy(
                         deviceId = device.id,
                         deviceName = device.name,
+                        brand = device.brand,
                         deviceType = device.deviceType,
                         connectionType = ConnectionType.WIFI,
                         locationTag = device.locationTag,
                         compatibilityStatus = device.compatibilityStatus,
                         isDemo = false,
                         irAvailability = availability,
-                        capabilities = caps
+                        capabilities = caps,
+                        networkConnected = false,
+                        connectionMessage = "Comprobando conexión…",
+                        projectorInfo = null,
+                        webControlIp = if (device.brand == DeviceBrand.EPSON) device.ipAddress else null
                     )
+                }
+                if (device.deviceType == DeviceType.PROJECTOR) {
+                    try {
+                        val result = sendNetworkCommand.connectProjector(device)
+                        val connected = result == DevicePairingState.Paired || result == DevicePairingState.NotRequired
+                        val verifiedCaps = if (connected) sendNetworkCommand.projectorCapabilities(device) else DeviceCapabilities()
+                        if (loadedDevice?.id != device.id) return@launch
+                        mutableState.update { it.copy(networkConnected = connected, capabilities = verifiedCaps,
+                            connectionMessage = when (result) {
+                                DevicePairingState.Paired, DevicePairingState.NotRequired -> "Conexión de protocolo confirmada"
+                                is DevicePairingState.PasswordRequired -> "Se necesita una contraseña: vuelve a Conectar mediante IP"
+                                is DevicePairingState.Failed -> result.reason
+                                else -> "Autenticación pendiente"
+                            }) }
+                        if (connected) refreshProjectorInfo()
+                    } catch (e: CancellationException) { throw e }
+                    catch (e: Exception) { mutableState.update { it.copy(connectionMessage = e.message ?: "El proyector no responde", networkConnected = false) } }
                 }
             } else {
                 val profile = infraredRepository.profiles.firstOrNull { it.id == device.irProfileId }
@@ -120,6 +149,7 @@ class RemoteViewModel @Inject constructor(
                     it.copy(
                         deviceId = device.id,
                         deviceName = device.name,
+                        brand = device.brand,
                         deviceType = device.deviceType,
                         connectionType = ConnectionType.INFRARED,
                         locationTag = device.locationTag,
@@ -135,6 +165,10 @@ class RemoteViewModel @Inject constructor(
 
     fun toggleConnectionType() {
         val current = loadedDevice ?: return
+        if (current.brand == DeviceBrand.EPSON) {
+            mutableState.update { it.copy(lastResultText = "Configura y confirma el otro método desde Agregar dispositivo antes de cambiarlo.") }
+            return
+        }
         val newType = if (current.connectionType == ConnectionType.WIFI) ConnectionType.INFRARED else ConnectionType.WIFI
         val updatedDevice = current.copy(connectionType = newType)
         viewModelScope.launch {
@@ -158,9 +192,10 @@ class RemoteViewModel @Inject constructor(
             return
         }
 
-        mutableState.update { it.copy(isTransmitting = true, isError = false, lastResultText = "Transmitiendo…") }
+        mutableState.update { it.copy(isTransmitting = true, isError = false, lastResultText = null) }
 
         viewModelScope.launch {
+            try {
             if (device.connectionType == ConnectionType.WIFI) {
                 when (val result = sendNetworkCommand(device, command)) {
                     is CommandResult.Sent -> {
@@ -170,7 +205,7 @@ class RemoteViewModel @Inject constructor(
                     }
                     is CommandResult.Failed -> {
                         mutableState.update {
-                            it.copy(lastResultText = "Error Wi-Fi: ${result.reason}", isError = true)
+                            it.copy(lastResultText = "Error Wi-Fi: ${result.reason}", isError = true, networkConnected = false, connectionMessage = result.reason)
                         }
                     }
                     is CommandResult.Unsupported -> {
@@ -189,7 +224,7 @@ class RemoteViewModel @Inject constructor(
                 when (result) {
                     is IrResult.Success -> {
                         mutableState.update {
-                            it.copy(lastResultText = "Señal enviada localmente (IR)", isError = false)
+                            it.copy(lastResultText = null, isError = false)
                         }
                     }
                     is IrResult.Failure -> {
@@ -204,8 +239,40 @@ class RemoteViewModel @Inject constructor(
                     }
                 }
             }
-            delay(1200)
-            mutableState.update { it.copy(isTransmitting = false, lastResultText = null) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                mutableState.update { it.copy(lastResultText = "No se pudo enviar el comando", isError = true) }
+            } finally {
+                mutableState.update { it.copy(isTransmitting = false) }
+            }
+        }
+    }
+
+    fun refreshProjectorInfo() {
+        val device = loadedDevice ?: return
+        viewModelScope.launch {
+            try {
+                val info = sendNetworkCommand.information(device)
+                if (loadedDevice?.id == device.id) mutableState.update { it.copy(projectorInfo = info) }
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { mutableState.update { it.copy(lastResultText = e.message ?: "No se pudo consultar información", isError = true) } }
+        }
+    }
+
+    fun selectProjectorInput(input: String) {
+        val device = loadedDevice ?: return
+        if (mutableState.value.isTransmitting) return
+        mutableState.update { it.copy(isTransmitting = true) }
+        viewModelScope.launch {
+            try {
+                val result = sendNetworkCommand.selectInput(device, input)
+                mutableState.update { it.copy(lastResultText = when (result) {
+                    CommandResult.Sent -> "Entrada confirmada por el protocolo"
+                    is CommandResult.Failed -> result.reason
+                    else -> "Entrada no compatible"
+                }, isError = result != CommandResult.Sent) }
+            } finally { mutableState.update { it.copy(isTransmitting = false) } }
         }
     }
 

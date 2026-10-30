@@ -12,7 +12,37 @@ data class BrandCatalogEntry(
     val notes: String
 )
 
+/** Model-level entry used by the Epson IR wizard and the network catalogue. */
+data class ModelCatalogEntry(
+    val brand: DeviceBrand,
+    val deviceType: DeviceType,
+    val model: String,
+    val defaultIrProfileId: String?,
+    val connection: ConnectionType,
+    val compatibilityStatus: CompatibilityStatus,
+    val notes: String,
+)
+
 object DeviceCatalog {
+
+    val modelEntries: List<ModelCatalogEntry> = listOf(
+        ModelCatalogEntry(
+            DeviceBrand.EPSON, DeviceType.PROJECTOR, "PowerLite 118",
+            "EPSON_POWERLITE_118_ORIGINAL_IR", ConnectionType.WIFI, CompatibilityStatus.EXPERIMENTAL,
+            "PJLink/Web Control documentados y perfil NECext 83 55 del control 219863500.",
+        ),
+        ModelCatalogEntry(
+            DeviceBrand.EPSON, DeviceType.PROJECTOR, "EB-L260F",
+            "EPSON_EB_L260F", ConnectionType.WIFI, CompatibilityStatus.EXPERIMENTAL,
+            "Perfil IR propio con capturas raw a 38 kHz. PJLink/Web Control documentados. Menu, Esc, Aspect, " +
+                "Color Mode, Computer, USB, LAN, Información y Ajustes sin captura IR verificada.",
+        ),
+        ModelCatalogEntry(
+            DeviceBrand.EPSON, DeviceType.PROJECTOR, "EMP822H",
+            "epson-emp822h-v1", ConnectionType.WIFI, CompatibilityStatus.EXPERIMENTAL,
+            "Captura NECext comunitaria; no se reutiliza en otros modelos.",
+        ),
+    )
 
     val entries: List<BrandCatalogEntry> = listOf(
         // TVs
@@ -26,7 +56,7 @@ object DeviceCatalog {
         BrandCatalogEntry(DeviceBrand.PANASONIC, DeviceType.TV, ConnectionType.INFRARED, ProtocolType.UNKNOWN, "panasonic-kaseikyo-v1", CompatibilityStatus.EXPERIMENTAL, "Panasonic Viera Kaseikyo 48-bit IR"),
 
         // Projectors
-        BrandCatalogEntry(DeviceBrand.EPSON, DeviceType.PROJECTOR, ConnectionType.WIFI, ProtocolType.PJLINK, "epson-emp822-v1", CompatibilityStatus.VERIFIED_PHYSICAL, "Proyectores Epson PJLink TCP 4352 e IR ESC/VP21"),
+        BrandCatalogEntry(DeviceBrand.EPSON, DeviceType.PROJECTOR, ConnectionType.WIFI, ProtocolType.UNKNOWN, "EPSON_POWERLITE_118_ORIGINAL_IR", CompatibilityStatus.EXPERIMENTAL, "PowerLite 118 y EB-L260F: PJLink/Web Control documentados. Perfiles IR independientes: PowerLite 118 (NECext 83 55) y EB-L260F (capturas raw propias); pendientes de confirmación física."),
         BrandCatalogEntry(DeviceBrand.BENQ, DeviceType.PROJECTOR, ConnectionType.WIFI, ProtocolType.PJLINK, "benq-projector-v1", CompatibilityStatus.VERIFIED_PHYSICAL, "Proyectores BenQ PJLink TCP y NEC IR"),
         BrandCatalogEntry(DeviceBrand.VIEWSONIC, DeviceType.PROJECTOR, ConnectionType.WIFI, ProtocolType.PJLINK, "viewsonic-pjd-v1", CompatibilityStatus.VERIFIED_PHYSICAL, "Proyectores ViewSonic PJD PJLink TCP y NEC IR"),
         BrandCatalogEntry(DeviceBrand.OPTOMA, DeviceType.PROJECTOR, ConnectionType.WIFI, ProtocolType.PJLINK, "optoma-universal-v1", CompatibilityStatus.VERIFIED_PHYSICAL, "Proyectores Optoma PJLink TCP y NEC IR"),
@@ -37,4 +67,9 @@ object DeviceCatalog {
 
     fun findEntry(brand: DeviceBrand, type: DeviceType): BrandCatalogEntry? =
         entries.firstOrNull { it.brand == brand && it.deviceType == type }
+
+    fun findModel(brand: DeviceBrand, type: DeviceType, model: String): ModelCatalogEntry? =
+        modelEntries.firstOrNull {
+            it.brand == brand && it.deviceType == type && it.model.equals(model, ignoreCase = true)
+        }
 }

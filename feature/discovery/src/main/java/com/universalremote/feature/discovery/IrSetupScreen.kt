@@ -26,7 +26,10 @@ fun IrSetupScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    Page(stringResource(R.string.test_screen_title), onBack) {
+    Page(
+        if (state.brand == DeviceBrand.EPSON) "Configurar control Epson" else stringResource(R.string.test_screen_title),
+        onBack
+    ) {
         // Emitter status
         val irActive = state.irAvailability == IrAvailability.Available
         StatusIndicator(
@@ -67,6 +70,29 @@ fun IrSetupScreen(
         }
 
         // Available profiles
+        if (state.brand == DeviceBrand.EPSON) {
+            Text("Selecciona el modelo Epson", style = MaterialTheme.typography.titleMedium)
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                IrSetupViewModel.EPSON_MODELS.forEach { model ->
+                    FilterChip(selected = state.epsonModel == model, onClick = { viewModel.selectEpsonModel(model) }, label = { Text(model) })
+                }
+            }
+            if (state.epsonModel == "PowerLite 118") {
+                InfoCard(
+                    "Control original 219863500 · PowerLite 118",
+                    "Perfil NECext 83 55 con los botones del control. Los códigos proceden de la base irdb y capturas comunitarias Flipper; el manual acredita la función de Menu, Esc, D-Pad, Enter, fuentes, volumen, Freeze, A/V Mute, Aspect y Color Mode, no sus tramas. Power, ID, Default, Split, Home y numéricos requieren confirmación física. El asistente prueba Menu, nunca Power."
+                )
+            }
+            if (state.epsonModel == "EB-L260F") {
+                InfoCard(
+                    "EB-L260F · perfil IR propio",
+                    "Perfil EPSON_EB_L260F construido con las capturas raw a 38 kHz de Flipper-IRDB para Power, Source Search, Freeze, E-Zoom +/−, A/V Mute (Black_screen), Split, Home, Enter, Volume +/− y D-Pad. No se reutilizan los códigos NECext del PowerLite 118. Menu, Esc, Aspect, Color Mode, Computer, USB, LAN, Información y Ajustes no tienen captura IR verificada y se muestran deshabilitados. Como Menu aún no está disponible, el asistente prueba Source Search y nunca Power. El manual confirma que el modelo tiene esos botones y que soporta PJLink Class 2, Web Control y ESC/VP21 por red/serie."
+                )
+            }
+        }
         if (state.availableProfiles.isNotEmpty()) {
             Text(stringResource(R.string.choose_brand), style = MaterialTheme.typography.titleMedium)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -114,6 +140,24 @@ fun IrSetupScreen(
                             "Comando de prueba: ${profile.testCommand.name} · ${profile.carrierHz} Hz",
                             style = MaterialTheme.typography.bodyMedium
                         )
+                        if (state.brand == DeviceBrand.EPSON) {
+                            Text(
+                                if (profile.testNote == null) {
+                                    "Apunta tu celular al receptor IR del proyector, a menos de 5 metros y sin obstáculos. Pulsa el botón y comprueba si aparece el menú en pantalla. No se probará Power."
+                                } else {
+                                    "Apunta tu celular al receptor IR del proyector, a menos de 5 metros y sin obstáculos. No se probará Power."
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        if (profile.testNote != null) {
+                            Text(
+                                profile.testNote!!,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
 
                         Button(
                             onClick = viewModel::sendTestCommand,

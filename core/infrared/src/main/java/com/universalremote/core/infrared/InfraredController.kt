@@ -90,7 +90,11 @@ class AndroidInfraredController(
         try {
             return withContext(io) {
                 ensureActive()
-                if (lastFinished?.let { nanoTime() - it < 250_000_000L } == true) return@withContext IrResult.Failure(IrError.BUSY)
+                // Respect the inter-transmission gap without dropping the next tap.
+                lastFinished?.let { finished ->
+                    val remaining = 250_000_000L - (nanoTime() - finished)
+                    if (remaining > 0) delay((remaining + 999_999L) / 1_000_000L)
+                }
                 when (val ranges = supportedFrequencies()) {
                     is IrResult.Unavailable -> return@withContext ranges
                     is IrResult.Failure -> return@withContext ranges
