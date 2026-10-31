@@ -54,10 +54,11 @@ class EpsonIrRemoteViewModelTest {
                     RemoteCommand.POWER to IrSignal(38_000, listOf(2383, 509, 648)),
                     RemoteCommand.INPUT to IrSignal(38_000, listOf(2372, 516, 643)),
                     RemoteCommand.OK to IrSignal(38_000, listOf(2354, 559, 623)),
+                    RemoteCommand.MENU to IrSignal(38_000, listOf(2288, 611, 571)),
                 ),
                 source = "test",
-                testCommand = RemoteCommand.INPUT,
-                testNote = "Menu pendiente de captura",
+                testCommand = RemoteCommand.MENU,
+                testNote = "Menu verificado por coincidencia con capturas de 13 bits",
             )
         )
         val sent = mutableListOf<Triple<String, RemoteCommand, Boolean>>()
@@ -209,18 +210,19 @@ class EpsonIrRemoteViewModelTest {
 
         assertEquals("Epson EB-L260F", vm.state.value.deviceName)
         assertEquals(EpsonIrRemoteViewModel.EB_L260F_PROFILE_ID, vm.state.value.profileId)
-        assertFalse(vm.state.value.supportedCommands.contains(RemoteCommand.MENU))
+        assertTrue(vm.state.value.supportedCommands.contains(RemoteCommand.MENU))
         assertTrue(vm.state.value.supportedCommands.contains(RemoteCommand.INPUT))
+        assertFalse(vm.state.value.supportedCommands.contains(RemoteCommand.INFO))
 
-        vm.sendCommand(RemoteCommand.MENU)
+        vm.sendCommand(RemoteCommand.INFO)
         advanceUntilIdle()
         assertTrue(infrared.sent.isEmpty())
         assertTrue(vm.state.value.lastResultText!!.contains("no tiene un código confirmado"))
 
-        vm.sendCommand(RemoteCommand.INPUT)
+        vm.sendCommand(RemoteCommand.MENU)
         advanceUntilIdle()
         assertEquals(1, infrared.sent.size)
-        assertEquals(RemoteCommand.INPUT, infrared.sent.first().second)
+        assertEquals(RemoteCommand.MENU, infrared.sent.first().second)
     }
 
     @Test

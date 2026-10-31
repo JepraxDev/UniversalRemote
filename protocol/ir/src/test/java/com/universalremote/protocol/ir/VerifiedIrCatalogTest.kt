@@ -82,30 +82,47 @@ class VerifiedIrCatalogTest {
         assertEquals(38_000, eb.carrierHz)
         assertTrue(eb.source.contains("Epson_EB-L260F.ir"))
         assertTrue(eb.protocol.contains("raw", ignoreCase = true))
-        assertEquals(RemoteCommand.INPUT, eb.testCommand)
+        assertEquals(RemoteCommand.MENU, eb.testCommand)
         assertNotNull(eb.testNote)
 
-        // Captured buttons only.
-        val expected = setOf(
+        val captured = setOf(
             RemoteCommand.POWER, RemoteCommand.INPUT, RemoteCommand.FREEZE,
             RemoteCommand.E_ZOOM_IN, RemoteCommand.E_ZOOM_OUT, RemoteCommand.AV_MUTE,
             RemoteCommand.SPLIT, RemoteCommand.HOME, RemoteCommand.OK,
             RemoteCommand.VOLUME_UP, RemoteCommand.VOLUME_DOWN,
             RemoteCommand.LEFT, RemoteCommand.DOWN, RemoteCommand.RIGHT, RemoteCommand.UP,
         )
-        assertEquals(expected, eb.commands.keys)
-        // Menu/Esc/Aspect/Color Mode/Computer/USB/LAN/Info/Settings have no verified capture.
-        assertFalse(eb.commands.containsKey(RemoteCommand.MENU))
-        assertFalse(eb.commands.containsKey(RemoteCommand.BACK))
-        assertFalse(eb.commands.containsKey(RemoteCommand.ASPECT_RATIO))
-        assertFalse(eb.commands.containsKey(RemoteCommand.COLOR_MODE))
-        assertFalse(eb.commands.containsKey(RemoteCommand.COMPUTER))
-        assertFalse(eb.commands.containsKey(RemoteCommand.USB))
-        assertFalse(eb.commands.containsKey(RemoteCommand.LAN))
+        val crossChecked = setOf(
+            RemoteCommand.MENU, RemoteCommand.BACK, RemoteCommand.DEFAULT,
+            RemoteCommand.ASPECT_RATIO, RemoteCommand.COLOR_MODE, RemoteCommand.COMPUTER,
+            RemoteCommand.HDMI, RemoteCommand.USB, RemoteCommand.LAN, RemoteCommand.USER,
+            RemoteCommand.AUTO_SETUP, RemoteCommand.SETTINGS_KEY,
+            RemoteCommand.NUM_1, RemoteCommand.NUM_2, RemoteCommand.NUM_3,
+            RemoteCommand.NUM_4, RemoteCommand.NUM_5, RemoteCommand.NUM_6,
+            RemoteCommand.NUM_7, RemoteCommand.NUM_8, RemoteCommand.NUM_9,
+        )
+        assertEquals(captured + crossChecked, eb.commands.keys)
+        // No verified code exists for 0/All, ID, Info or the Num modifier.
+        assertFalse(eb.commands.containsKey(RemoteCommand.NUM_0))
+        assertFalse(eb.commands.containsKey(RemoteCommand.ID))
         assertFalse(eb.commands.containsKey(RemoteCommand.INFO))
-        assertFalse(eb.commands.containsKey(RemoteCommand.SETTINGS_KEY))
+        assertFalse(eb.commands.containsKey(RemoteCommand.NUM_MODIFIER))
 
-        // Every raw capture is valid and not interchangeable with the PowerLite profile.
+        // Regression: the old lossy pair decoder collapsed these distinct captures.
+        assertNotEquals(eb.commands[RemoteCommand.HDMI], eb.commands[RemoteCommand.AUTO_SETUP])
+        assertNotEquals(
+            eb.commands.getValue(RemoteCommand.INPUT).patternMicros.take(29).map { it > 900 },
+            eb.commands.getValue(RemoteCommand.LAN).patternMicros.take(29).map { it > 900 },
+        )
+        // Source fixture: G5650W DVI-D/HDMI, including long spaces (not just marks).
+        assertEquals(
+            listOf(2293, 573, 573, 573, 1146, 573, 573, 573, 573, 1146,
+                573, 1146, 1146, 1146, 1146, 1146, 573, 1146, 573, 573,
+                573, 573, 573, 573, 573, 573, 573, 573, 573, 74255),
+            eb.commands.getValue(RemoteCommand.HDMI).patternMicros.take(30),
+        )
+
+        // Every frame is valid and not interchangeable with the PowerLite profile.
         eb.commands.forEach { (command, signal) ->
             assertNull(IrSignalValidator.validate(signal.carrierHz, signal.patternMicros))
             assertNotEquals("$command must not reuse PowerLite", powerLite.commands[command], signal)
@@ -115,6 +132,9 @@ class VerifiedIrCatalogTest {
             assertTrue(it.source.contains("Epson_EB-L260F.ir"))
             assertEquals(IrCommandVerification.COMMUNITY_CAPTURED, it.verification)
         }
+        // Cross-checked info points at both reference captures.
+        assertTrue(eb.commandInfo.getValue(RemoteCommand.MENU).source.contains("Epson_4650.ir"))
+        assertTrue(eb.commandInfo.getValue(RemoteCommand.NUM_7).source.contains("Power_Lite_Pro_G5650W.ir"))
     }
 
     private val catalog = VerifiedIrCatalog()

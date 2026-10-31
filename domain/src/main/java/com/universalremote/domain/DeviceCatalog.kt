@@ -34,8 +34,9 @@ object DeviceCatalog {
         ModelCatalogEntry(
             DeviceBrand.EPSON, DeviceType.PROJECTOR, "EB-L260F",
             "EPSON_EB_L260F", ConnectionType.WIFI, CompatibilityStatus.EXPERIMENTAL,
-            "Perfil IR propio con capturas raw a 38 kHz. PJLink/Web Control documentados. Menu, Esc, Aspect, " +
-                "Color Mode, Computer, USB, LAN, Información y Ajustes sin captura IR verificada.",
+            "Perfil IR propio a 38 kHz: 15 capturas raw y capturas de referencia pendientes de prueba física " +
+                "(Menu, Esc, Aspect, Color Mode, Computer, HDMI, USB/LAN, User, Auto, Default, Ajustes y 1–9). " +
+                "PJLink/Web Control documentados. 0/All, ID, Información y Num sin código verificado.",
         ),
         ModelCatalogEntry(
             DeviceBrand.EPSON, DeviceType.PROJECTOR, "EMP822H",
@@ -56,7 +57,7 @@ object DeviceCatalog {
         BrandCatalogEntry(DeviceBrand.PANASONIC, DeviceType.TV, ConnectionType.INFRARED, ProtocolType.UNKNOWN, "panasonic-kaseikyo-v1", CompatibilityStatus.EXPERIMENTAL, "Panasonic Viera Kaseikyo 48-bit IR"),
 
         // Projectors
-        BrandCatalogEntry(DeviceBrand.EPSON, DeviceType.PROJECTOR, ConnectionType.WIFI, ProtocolType.UNKNOWN, "EPSON_POWERLITE_118_ORIGINAL_IR", CompatibilityStatus.EXPERIMENTAL, "PowerLite 118 y EB-L260F: PJLink/Web Control documentados. Perfiles IR independientes: PowerLite 118 (NECext 83 55) y EB-L260F (capturas raw propias); pendientes de confirmación física."),
+        BrandCatalogEntry(DeviceBrand.EPSON, DeviceType.PROJECTOR, ConnectionType.WIFI, ProtocolType.UNKNOWN, "EPSON_POWERLITE_118_ORIGINAL_IR", CompatibilityStatus.EXPERIMENTAL, "PowerLite 118 y EB-L260F: PJLink/Web Control documentados. Perfiles IR independientes: PowerLite 118 (NECext 83 55) y EB-L260F (capturas raw propias y de referencia); pendientes de confirmación física."),
         BrandCatalogEntry(DeviceBrand.BENQ, DeviceType.PROJECTOR, ConnectionType.WIFI, ProtocolType.PJLINK, "benq-projector-v1", CompatibilityStatus.VERIFIED_PHYSICAL, "Proyectores BenQ PJLink TCP y NEC IR"),
         BrandCatalogEntry(DeviceBrand.VIEWSONIC, DeviceType.PROJECTOR, ConnectionType.WIFI, ProtocolType.PJLINK, "viewsonic-pjd-v1", CompatibilityStatus.VERIFIED_PHYSICAL, "Proyectores ViewSonic PJD PJLink TCP y NEC IR"),
         BrandCatalogEntry(DeviceBrand.OPTOMA, DeviceType.PROJECTOR, ConnectionType.WIFI, ProtocolType.PJLINK, "optoma-universal-v1", CompatibilityStatus.VERIFIED_PHYSICAL, "Proyectores Optoma PJLink TCP y NEC IR"),

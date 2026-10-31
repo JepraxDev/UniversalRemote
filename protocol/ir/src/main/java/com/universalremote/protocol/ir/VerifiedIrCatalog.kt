@@ -152,16 +152,24 @@ object EpsonPowerLite118 {
 }
 
 /**
- * Raw 38 kHz captures for the Epson EB-L260F published in Flipper-IRDB.
+ * IR profile for the Epson EB-L260F (remote 2221508 / 222150800).
  *
- * These are the exact captured timings, including the repeat frames and inter-frame
- * gaps. They are NOT decoded into NEC/NECext and they are NOT the PowerLite 118
- * codes: the EB-L260F capture has 14-bit frames that do not match 83 55.
+ * The original 15 buttons use the exact raw timings captured in Flipper-IRDB.
+ * Additional buttons preserve raw Epson 4650 / PowerLite Pro G5650W captures.
+ * Matching overlapping captures is evidence for testing, not proof that every
+ * additional function is compatible with this model. They are NOT
+ * the PowerLite 118 NEC 83 55 codes and still require a physical check on the
+ * target projector.
  */
 object EpsonEbL260F {
     const val SOURCE =
         "https://github.com/Lucaslhm/Flipper-IRDB/blob/main/Projectors/Epson/Epson_EB-L260F.ir"
-    private const val MANUAL = "Epson EB-L210W/EB-L260F/EB-L265F/EB-L270F User's Guide (function list only)"
+    private const val EPSON_4650 =
+        "https://github.com/Lucaslhm/Flipper-IRDB/blob/main/Projectors/Epson/Epson_4650.ir"
+    private const val G5650W =
+        "https://github.com/Lucaslhm/Flipper-IRDB/blob/main/_Converted_/Pronto/E/Epson/Power_Lite_Pro_G5650W.ir"
+    private const val CROSS_CHECK =
+        "Captura raw de referencia Epson 4650/G5650W. Compatibilidad de esta función pendiente de prueba física en el EB-L260F."
 
     private val raw: Map<RemoteCommand, List<Int>> = mapOf(
         RemoteCommand.POWER to listOf(2383, 509, 648, 504, 1227, 504, 648, 528, 624, 1079, 677, 1054, 651, 529, 624, 529, 624, 529, 623, 529, 623, 530, 621, 532, 620, 534, 618, 536, 617, 77252, 2374, 536, 619, 535, 1196, 535, 617, 536, 617, 1114, 617, 1114, 617, 536, 617, 536, 617, 536, 617, 536, 617, 536, 617, 536, 617, 536, 617, 536, 617),
@@ -181,8 +189,16 @@ object EpsonEbL260F {
         RemoteCommand.UP to listOf(2354, 532, 623, 529, 1201, 528, 623, 529, 652, 501, 651, 1076, 654, 525, 627, 526, 626, 526, 625, 527, 624, 1106, 622, 530, 621, 532, 620, 533, 619, 32421, 2351, 535, 620, 532, 1198, 532, 619, 533, 619, 533, 619, 1110, 620, 533, 619, 533, 620, 533, 619, 533, 619, 1111, 619, 533, 620, 533, 619, 533, 619, 32418, 2352, 535, 620, 532, 1198, 532, 620, 533, 620, 533, 620, 1111, 620, 533, 620, 533, 619, 533, 620, 533, 620, 1111, 620, 533, 620, 533, 619, 533, 620),
     )
 
+    /**
+     * Preserve full pulse trains. HDMI differs from Auto; Search differs from LAN/USB.
+     */
     val commands: Map<RemoteCommand, IrSignal> =
-        raw.mapValues { (_, pattern) -> IrSignal(38_000, pattern) }
+        raw.mapValues { (_, pattern) -> IrSignal(38_000, pattern) } +
+            EpsonReferenceCaptures.commands + mapOf(
+                RemoteCommand.NUM_1 to IrSignal(38_000, raw.getValue(RemoteCommand.AV_MUTE)),
+                RemoteCommand.NUM_2 to IrSignal(38_000, raw.getValue(RemoteCommand.SPLIT)),
+                RemoteCommand.NUM_3 to IrSignal(38_000, raw.getValue(RemoteCommand.FREEZE)),
+            )
 
     private val labels = mapOf(
         RemoteCommand.POWER to "Power (alternancia)",
@@ -200,23 +216,60 @@ object EpsonEbL260F {
         RemoteCommand.DOWN to "Abajo",
         RemoteCommand.RIGHT to "Derecha",
         RemoteCommand.UP to "Arriba",
+        RemoteCommand.MENU to "Menu",
+        RemoteCommand.BACK to "Esc",
+        RemoteCommand.DEFAULT to "Default",
+        RemoteCommand.ASPECT_RATIO to "Aspect",
+        RemoteCommand.COLOR_MODE to "Color Mode",
+        RemoteCommand.COMPUTER to "Computer",
+        RemoteCommand.HDMI to "HDMI",
+        RemoteCommand.USB to "USB",
+        RemoteCommand.LAN to "LAN",
+        RemoteCommand.USER to "User",
+        RemoteCommand.AUTO_SETUP to "Auto",
+        RemoteCommand.SETTINGS_KEY to "Ajustes (Menu)",
+        RemoteCommand.NUM_1 to "1",
+        RemoteCommand.NUM_2 to "2",
+        RemoteCommand.NUM_3 to "3",
+        RemoteCommand.NUM_4 to "4",
+        RemoteCommand.NUM_5 to "5",
+        RemoteCommand.NUM_6 to "6",
+        RemoteCommand.NUM_7 to "7",
+        RemoteCommand.NUM_8 to "8",
+        RemoteCommand.NUM_9 to "9",
     )
 
     fun info(): Map<RemoteCommand, IrCommandInfo> = commands.keys.associateWith { command ->
+        val isRaw = raw.containsKey(command)
         IrCommandInfo(
             function = labels[command] ?: command.name,
-            protocol = "Raw capturado a 38 kHz (14 bits por trama)",
-            source = SOURCE,
+            protocol = "Epson raw a 38 kHz",
+            source = if (isRaw) SOURCE else "$SOURCE; $EPSON_4650; $G5650W",
             verification = IrCommandVerification.COMMUNITY_CAPTURED,
-            note = when (command) {
-                RemoteCommand.POWER ->
-                    "Captura de alternancia. Sin POWER_ON/POWER_OFF discretos verificados para este modelo."
-                RemoteCommand.INPUT -> "Botón Source Search del control original; también se usa como prueba disponible porque Menu no tiene captura."
-                RemoteCommand.AV_MUTE -> "La captura Flipper se llama Black_screen: oculta la imagen, no hay mute de audio independiente verificado."
-                RemoteCommand.E_ZOOM_IN, RemoteCommand.E_ZOOM_OUT ->
-                    "Zoom digital de imagen; no mueve el enfoque ni el zoom manual de la lente."
-                RemoteCommand.SPLIT -> "Solo actúa si el proyector admite pantalla dividida."
-                else -> "Patrón raw comunitario; incluye las repeticiones capturadas. Recepción pendiente de prueba física."
+            note = when {
+                isRaw -> when (command) {
+                    RemoteCommand.POWER ->
+                        "Captura de alternancia. Sin POWER_ON/POWER_OFF discretos verificados para este modelo."
+                    RemoteCommand.INPUT -> "Botón Source Search del control original."
+                    RemoteCommand.AV_MUTE -> "La captura Flipper se llama Black_screen: oculta la imagen, no hay mute de audio independiente verificado."
+                    RemoteCommand.E_ZOOM_IN, RemoteCommand.E_ZOOM_OUT ->
+                        "Zoom digital de imagen; no mueve el enfoque ni el zoom manual de la lente."
+                    RemoteCommand.SPLIT -> "Solo actúa si el proyector admite pantalla dividida."
+                    else -> "Patrón raw comunitario; incluye las repeticiones capturadas. Recepción pendiente de prueba física."
+                }
+                command == RemoteCommand.USB || command == RemoteCommand.LAN ->
+                    "$CROSS_CHECK Captura de tecla combinada LAN/USB; no garantiza selección independiente de USB o LAN."
+                command == RemoteCommand.HDMI || command == RemoteCommand.AUTO_SETUP ->
+                    "$CROSS_CHECK HDMI y Auto usan señales distintas."
+                command == RemoteCommand.BACK || command == RemoteCommand.DEFAULT ->
+                    CROSS_CHECK
+                command == RemoteCommand.SETTINGS_KEY ->
+                    "$CROSS_CHECK Se abre el menú, que es la vía real de ajustes en el proyector."
+                command in setOf(
+                    RemoteCommand.NUM_1, RemoteCommand.NUM_2, RemoteCommand.NUM_3,
+                    RemoteCommand.NUM_4, RemoteCommand.NUM_5, RemoteCommand.NUM_6,
+                ) -> "$CROSS_CHECK Las teclas 1–6 comparten código con A/V Mute, Split, Freeze, Auto, Aspect y Color Mode en el control original."
+                else -> CROSS_CHECK
             },
         )
     }
@@ -421,15 +474,15 @@ class VerifiedIrCatalog : IrProfileCatalog {
             brand = DeviceBrand.EPSON,
             deviceType = DeviceType.PROJECTOR,
             family = "EB-L260F · captura IR comunitaria",
-            protocol = "Epson raw 38 kHz (14 bits, sin decodificar)",
+            protocol = "Epson raw a 38 kHz",
             carrierHz = 38_000,
             commands = EpsonEbL260F.commands,
             source = EpsonEbL260F.SOURCE,
-            testCommand = RemoteCommand.INPUT,
+            testCommand = RemoteCommand.MENU,
             commandInfo = EpsonEbL260F.info(),
-            testNote = "Menu todavía no tiene captura IR verificada para el EB-L260F. " +
-                "El asistente prueba Source Search, que sí tiene captura, y nunca usa Power como prueba inicial. " +
-                "Los botones Menu, Esc, Aspect, Color Mode, Computer, USB, LAN, Información y Ajustes quedan pendientes de captura.",
+            testNote = "Menu usa una captura raw de referencia Epson, pendiente de comprobar en tu EB-L260F. " +
+                "USB/LAN usa una tecla combinada: no garantiza seleccionar cada entrada por separado. " +
+                "0/All, ID e Información siguen sin código verificado.",
         ),
         profile("epson-emp822h-v1", DeviceBrand.EPSON, DeviceType.PROJECTOR, "EMP822H (captura documentada; otros modelos sin verificar)", "NECext", 0x83, 0x55,
             "Projectors/Epson/Epson_EMP822H.ir", mapOf(

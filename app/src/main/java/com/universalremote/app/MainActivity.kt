@@ -135,7 +135,12 @@ class MainActivity : ComponentActivity() {
                                 onDeviceSaved = { deviceId, type ->
                                     remote.loadDevice(deviceId)
                                     epsonRemote.loadDevice(deviceId)
-                                    nav.open(if (type == DeviceType.TV) Destination.REMOTE_TV else Destination.REMOTE_PROJECTOR)
+                                    val destination = if (type == DeviceType.TV) Destination.REMOTE_TV else Destination.REMOTE_PROJECTOR
+                                    nav.navigate(destination.name) {
+                                        // Finished setup must not reappear when leaving the saved remote.
+                                        popUpTo(Destination.HOME.name) { inclusive = false }
+                                        launchSingleTop = true
+                                    }
                                 }
                             )
                         }

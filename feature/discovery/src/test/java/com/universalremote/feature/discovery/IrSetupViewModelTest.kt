@@ -55,6 +55,13 @@ class IrSetupViewModelTest {
                 ),
                 source = "test",
                 testCommand = RemoteCommand.MENU
+            ),
+            IrProfile(
+                id = "EPSON_EB_L260F", brand = DeviceBrand.EPSON,
+                deviceType = DeviceType.PROJECTOR, family = "EB-L260F",
+                protocol = "raw", carrierHz = 38000,
+                commands = mapOf(RemoteCommand.MENU to IrSignal(38000, listOf(2293, 573, 573))),
+                source = "test", testCommand = RemoteCommand.MENU,
             )
         )
         override val pendingBrands = listOf(
@@ -239,5 +246,28 @@ class IrSetupViewModelTest {
         assertEquals(listOf("EPSON_POWERLITE_118_ORIGINAL_IR"), infraredRepository.testCalls)
         assertEquals(IrTestStep.TESTING_COMMAND, vm.state.value.testStep)
         assertFalse(vm.state.value.lastTransmissionMessage!!.contains("correctamente", ignoreCase = true))
+    }
+
+    @Test
+    fun selectingProfileCardSavesMatchingEpsonModel() = runTest(dispatcher) {
+        val vm = IrSetupViewModel(
+            SavedStateHandle(mapOf("type" to "PROJECTOR", "brand" to "EPSON")),
+            deviceRepository, infraredRepository,
+        ) { IrAvailability.Available }
+        advanceUntilIdle()
+        vm.selectProfile(infraredRepository.profiles.first { it.id == "EPSON_EB_L260F" })
+        assertEquals("EB-L260F", vm.state.value.epsonModel)
+        assertEquals("Epson EB-L260F", vm.state.value.customDeviceName)
+        vm.setDeviceName("aula 04")
+        vm.sendTestCommand()
+        advanceUntilIdle()
+        vm.confirmResponse(true)
+        advanceUntilIdle()
+        vm.saveDevice { }
+        advanceUntilIdle()
+        val device = deviceRepository.devices.values.single()
+        assertEquals("EPSON_EB_L260F", device.irProfileId)
+        assertEquals("EB-L260F", device.model)
+        assertEquals("aula 04", device.name)
     }
 }

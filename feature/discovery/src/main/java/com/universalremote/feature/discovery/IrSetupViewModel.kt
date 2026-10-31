@@ -96,8 +96,13 @@ class IrSetupViewModel @Inject constructor(
     fun selectProfile(profile: IrProfile) {
         if (mutableState.value.isTransmitting || profile !in mutableState.value.availableProfiles) return
         mutableState.update {
+            val model = if (it.brand == DeviceBrand.EPSON) {
+                EPSON_MODELS.firstOrNull { model -> epsonProfileId(model) == profile.id } ?: it.epsonModel
+            } else it.epsonModel
             it.copy(
                 selectedProfile = profile,
+                epsonModel = model,
+                customDeviceName = if (it.brand == DeviceBrand.EPSON && it.customDeviceName == "Epson ${it.epsonModel}") "Epson $model" else it.customDeviceName,
                 testStep = IrTestStep.SELECT_PROFILE,
                 lastTransmissionMessage = null,
                 validationStatus = IrValidationStatus.UNVERIFIED,

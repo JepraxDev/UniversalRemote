@@ -89,12 +89,12 @@ fun IrSetupScreen(
             if (state.epsonModel == "EB-L260F") {
                 InfoCard(
                     "EB-L260F · perfil IR propio",
-                    "Perfil EPSON_EB_L260F construido con las capturas raw a 38 kHz de Flipper-IRDB para Power, Source Search, Freeze, E-Zoom +/−, A/V Mute (Black_screen), Split, Home, Enter, Volume +/− y D-Pad. No se reutilizan los códigos NECext del PowerLite 118. Menu, Esc, Aspect, Color Mode, Computer, USB, LAN, Información y Ajustes no tienen captura IR verificada y se muestran deshabilitados. Como Menu aún no está disponible, el asistente prueba Source Search y nunca Power. El manual confirma que el modelo tiene esos botones y que soporta PJLink Class 2, Web Control y ESC/VP21 por red/serie."
+                    "Perfil EPSON_EB_L260F a 38 kHz con 15 capturas propias. Las funciones adicionales usan capturas raw de referencia Epson 4650/G5650W y requieren prueba en tu proyector. HDMI y Auto son señales distintas. USB/LAN usa una tecla combinada, no entradas independientes confirmadas. 0/All, ID e Información siguen sin código verificado. Prueba Menu antes de guardar."
                 )
             }
         }
         if (state.availableProfiles.isNotEmpty()) {
-            Text(stringResource(R.string.choose_brand), style = MaterialTheme.typography.titleMedium)
+            Text("Selecciona el perfil IR", style = MaterialTheme.typography.titleMedium)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 state.availableProfiles.forEach { profile ->
                     val isSelected = state.selectedProfile?.id == profile.id
@@ -194,76 +194,6 @@ fun IrSetupScreen(
                     }
                 }
 
-                // Question: Did device respond?
-                AnimatedVisibility(visible = state.testStep == IrTestStep.TESTING_COMMAND && state.transmissionSuccess) {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(
-                                stringResource(R.string.did_device_respond),
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Button(
-                                    onClick = { viewModel.confirmResponse(true) },
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text(stringResource(R.string.yes_it_worked))
-                                }
-                                OutlinedButton(
-                                    onClick = { viewModel.confirmResponse(false) },
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Text(stringResource(R.string.no_it_failed))
-                                }
-                            }
-                            TextButton(
-                                onClick = viewModel::retryAnotherProfile,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(stringResource(R.string.try_another_profile))
-                            }
-                        }
-                    }
-                }
-
-                // Confirmed flow: name and save device
-                AnimatedVisibility(visible = state.testStep == IrTestStep.CONFIRMED_SUCCESS) {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(stringResource(R.string.save_device_title), style = MaterialTheme.typography.titleLarge)
-                            OutlinedTextField(
-                                value = state.customDeviceName,
-                                onValueChange = viewModel::setDeviceName,
-                                label = { Text(stringResource(R.string.device_name_label)) },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            OutlinedTextField(
-                                value = state.customRoomName,
-                                onValueChange = viewModel::setRoomName,
-                                label = { Text(stringResource(R.string.room_name_label)) },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Button(
-                                onClick = { viewModel.saveDevice { id -> onDeviceSaved(id, state.deviceType) } },
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
-                            ) {
-                                Text(stringResource(R.string.save_and_open))
-                            }
-                        }
-                    }
-                }
-
                 // Incompatible result flow
                 AnimatedVisibility(visible = state.testStep == IrTestStep.INCOMPATIBLE_RESULT) {
                     Card(
@@ -286,6 +216,83 @@ fun IrSetupScreen(
                     }
                 }
             }
+        }
+
+        // Modal: did the projector respond?
+        if (state.testStep == IrTestStep.TESTING_COMMAND && state.transmissionSuccess) {
+            AlertDialog(
+                onDismissRequest = { viewModel.retryAnotherProfile() },
+                icon = { Icon(Icons.Default.HelpOutline, null) },
+                title = { Text(stringResource(R.string.did_device_respond)) },
+                text = {
+                    Text(
+                        "La app solo confirma que el emisor aceptó la trama. " +
+                            "Mira el proyector: si apareció el menú u otro cambio en pantalla, responde Sí."
+                    )
+                },
+                confirmButton = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Button(
+                            onClick = { viewModel.confirmResponse(true) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        ) {
+                            Text(stringResource(R.string.yes_it_worked))
+                        }
+                        OutlinedButton(
+                            onClick = { viewModel.confirmResponse(false) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        ) {
+                            Text(stringResource(R.string.no_it_failed))
+                        }
+                        TextButton(
+                            onClick = viewModel::retryAnotherProfile,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        ) {
+                            Text(stringResource(R.string.try_another_profile))
+                        }
+                    }
+                },
+            )
+        }
+
+        // Modal: name and save the working control.
+        if (state.testStep == IrTestStep.CONFIRMED_SUCCESS) {
+            AlertDialog(
+                onDismissRequest = { viewModel.retryAnotherProfile() },
+                icon = { Icon(Icons.Default.Save, null) },
+                title = { Text(stringResource(R.string.save_device_title)) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = state.customDeviceName,
+                            onValueChange = viewModel::setDeviceName,
+                            label = { Text(stringResource(R.string.device_name_label)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = state.customRoomName,
+                            onValueChange = viewModel::setRoomName,
+                            label = { Text(stringResource(R.string.room_name_label)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = { viewModel.saveDevice { id -> onDeviceSaved(id, state.deviceType) } }) {
+                        Text(stringResource(R.string.save_and_open))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.retryAnotherProfile() }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                },
+            )
         }
     }
 }

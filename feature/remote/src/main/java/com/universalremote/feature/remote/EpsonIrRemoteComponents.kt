@@ -409,7 +409,6 @@ fun EpsonNumericKeypad(
                 enabled = enabled,
                 modifier = Modifier.weight(1f),
                 minHeight = 52.dp,
-                pending = true,
             )
             EpsonRemoteKey(
                 label = "0 / All",
@@ -432,7 +431,7 @@ fun EpsonNumericKeypad(
                 pending = true,
             )
             Text(
-                "Num es un modificador: no emite una señal propia. ID muestra el ID actual; mantén ID y pulsa un número para asignarlo. 0/All permite operar todos los proyectores.",
+                "Num es un modificador: no emite una señal propia. ID muestra el ID actual; mantén ID y pulsa un número para asignarlo. 0/All permite operar todos los proyectores. Num, ID y 0/All no tienen código IR verificado para este modelo y aparecen deshabilitados.",
                 color = EpsonRemoteColors.TextMuted,
                 fontSize = 10.sp,
                 lineHeight = 14.sp,
@@ -558,7 +557,7 @@ fun EpsonNavigationKeys(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.fillMaxWidth()) {
             EpsonRemoteKey("User", RemoteCommand.USER, onCommand, Modifier.weight(1f), Icons.Default.Person, enabled)
-            EpsonRemoteKey("Default", RemoteCommand.DEFAULT, onCommand, Modifier.weight(1f), Icons.Default.RestartAlt, enabled, pending = true)
+            EpsonRemoteKey("Default", RemoteCommand.DEFAULT, onCommand, Modifier.weight(1f), Icons.Default.RestartAlt, enabled)
         }
     }
 }
@@ -626,7 +625,7 @@ fun EpsonFunctionPanel(
         }
         Text(
             "Split solo funciona si el proyector admite pantalla dividida. A/V Mute oculta imagen y sonido; no es un mute de audio independiente. " +
-                "Información y Ajustes se muestran deshabilitados cuando el perfil cargado no tiene una captura IR verificada para esos botones.",
+                "Ajustes abre el menú del proyector. Información se muestra deshabilitado porque no hay código IR verificado para ese botón.",
             color = EpsonRemoteColors.TextMuted,
             fontSize = 10.sp,
             lineHeight = 14.sp,

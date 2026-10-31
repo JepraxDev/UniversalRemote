@@ -49,7 +49,7 @@ el navegador; no se han inventado endpoints HTTP ni comandos PJLink para esas te
 | Modelo | IR | PJLink | ESC/VP21 | Web Control | Wi-Fi | RJ45 | Estado físico |
 |---|---|---|---|---|---|---|---|
 | PowerLite 118 | Perfil `EPSON_POWERLITE_118_ORIGINAL_IR` (219863500); códigos documentados/comunitarios, pendiente físico | Documentado e implementado | Transporte por modelo pendiente | Documentado; acceso navegador | Opcional | Sí | Pendiente |
-| EB-L260F | Perfil `EPSON_EB_L260F` con 15 capturas raw propias a 38 kHz; Menu/Esc/Aspect/Color Mode/Computer/USB/LAN/Info/Ajustes pendientes de captura | Documentado e implementado (TCP 4352, Clase 2) | `KEY xx` documentado; transporte no implementado | Documentado; acceso navegador | Opcional | Sí | Pendiente |
+| EB-L260F | Perfil `EPSON_EB_L260F`: 15 capturas propias + capturas raw de referencia; compatibilidad adicional pendiente de prueba física; 0/All, ID, Info y Num sin código | Documentado e implementado (TCP 4352, Clase 2) | `KEY xx` documentado; transporte no implementado | Documentado; acceso navegador | Opcional | Sí | Pendiente |
 | EMP822H | Captura comunitaria documentada; implementado | Pendiente | Pendiente | Pendiente | Pendiente | Pendiente | Pendiente |
 
 EB, EX, Home Cinema, Pro Cinema, BrightLink, Pro L y EpiqVision no se marcan
@@ -104,24 +104,36 @@ confirmación del usuario, pendiente, IR no disponible y error. Un `transmit()`
 sin excepción no se presenta como éxito del proyector.
 
 ## Perfil IR del Epson EB-L260F
-`EPSON_EB_L260F` es independiente del PowerLite 118. No usa NECext `83 55` ni
-convierte las capturas a NEC: guarda los patrones raw a 38 kHz tal como están en
-`Projectors/Epson/Epson_EB-L260F.ir` de Flipper-IRDB, incluidas las repeticiones
-capturadas. Cada trama tiene 29 entradas (cabecera + 14 bits) y no coincide con
-el protocolo del 118.
+`EPSON_EB_L260F` es independiente del PowerLite 118. No usa NECext `83 55`.
+Los 15 botones capturados conservan los patrones raw a 38 kHz tal como están en
+`Projectors/Epson/Epson_EB-L260F.ir` de Flipper-IRDB, incluidas las repeticiones.
+Cada trama capturada tiene 29 entradas (cabecera, 13 pares y pulso final) y no coincide con el protocolo
+del 118.
+
+Corrección: la reducción anterior de cada par a un bit perdía información.
+HDMI y Auto NO son la misma señal; Source Search y LAN/USB tampoco.
+Se eliminó `Epson13BitEncoder`. Las funciones adicionales conservan los pulsos
+de referencia de `Epson_4650.ir` (Default/User1) y `Power_Lite_Pro_G5650W.ir`,
+repitiendo dos veces la primera trama y su pausa capturada. Las coincidencias
+en botones comunes justifican probar esas referencias, pero no demuestran
+compatibilidad de todas las funciones en el EB-L260F. Se requiere prueba física.
 
 | Botón | Estado IR |
 |---|---|
 | Power (alternancia), Source Search, Freeze, E-Zoom +, E-Zoom − | Captura raw comunitaria |
 | A/V Mute (captura `Black_screen`), Split, Home, Enter | Captura raw comunitaria |
 | Volume +, Volume −, Arriba, Abajo, Izquierda, Derecha | Captura raw comunitaria |
-| Menu, Esc, Aspect, Color Mode, Computer, USB, LAN, Información, Ajustes | Sin captura verificada: deshabilitados |
+| Menu, Esc, Default, Aspect, Color Mode, Computer, HDMI | Raw de referencia; pendiente físico |
+| USB, LAN | Tecla combinada LAN/USB de referencia; selección independiente no verificada |
+| User, Auto, Ajustes (Menu) | Raw de referencia; pendiente físico |
+| Teclas 1–6 | Funciones compartidas en el control de referencia; uso numérico pendiente físico |
+| Teclas 7, 8, 9 | Raw de referencia; pendiente físico |
+| 0/All, ID, Información, modificador Num | Sin código verificado: deshabilitados |
 
 `Power` es solo alternancia; no hay `POWER_ON`/`POWER_OFF` discretos verificados.
-El asistente no puede probar Menu porque no existe captura: prueba **Source Search**
-(indicado explícitamente en la pantalla) y nunca usa Power como primera prueba.
-Los botones sin código se muestran deshabilitados con la etiqueta «sin código»;
-la app no deriva señales por analogía con otros modelos Epson.
+El asistente prueba **Menu** y nunca usa Power como primera prueba. Los botones sin
+código se muestran deshabilitados con la etiqueta «sin código»; la app no deriva
+señales por analogía con otros modelos Epson.
 
 Red documentada del EB-L260F: PJLink Clase 2 en TCP/UDP 4352, Epson Web Control y
 ESC/VP21 (`KEY 3C` = Menu, etc.). ESC/VP21 se documenta pero **no se implementa**
@@ -132,10 +144,11 @@ consultan al proyector y no se inventan correspondencias.
 ## Prueba física EB-L260F
 1. `Agregar dispositivo → Proyector → Epson → EB-L260F → Infrarrojo`.
 2. Comprobar el emisor IR, apuntar al receptor del proyector y pulsar
-   **Probar Source Search** (Menu sigue pendiente de captura).
+   **Probar Menu**.
 3. Confirmar si el proyector respondió; solo entonces se guarda el dispositivo.
 4. Abrir el control y probar, uno a uno, Power, Freeze, D-Pad, Enter, Volume,
-   E-Zoom, A/V Mute, Split y Home. Anotar los que respondan.
+   E-Zoom, A/V Mute, Split, Home, Menu, Esc, Aspect, Color Mode, Computer, HDMI,
+   USB/LAN, User, Auto, Default y las teclas 1–9. Anotar los que respondan.
 5. Para red: elegir EB-L260F, introducir IP y contraseña PJLink si existe,
    detectar protocolo, consultar estado y entradas, y abrir Web Control.
 6. Registrar IP, firmware, celular, red, autenticación, comandos y resultado.
@@ -168,6 +181,8 @@ ningún dispositivo y no se recibió la IP del proyector.
 - Sin transporte ESC/VP21 de red habilitado hasta verificar documentación específica.
 - Códigos IR del 118 implementados con trazabilidad, pero no confirmados físicamente;
   no se simula recepción ni compatibilidad.
+- En el EB-L260F no hay código verificado para 0/All, ID, Información ni el
+  modificador Num; esos botones siguen deshabilitados hasta capturarlos o probarlos.
 - Sin descubrimiento UDP PJLink clase 2 ni búsqueda propietaria Epson.
 - Diagnóstico básico de red/protocolo; no determina por sí solo reglas VLAN/firewall.
 - Reconexión usa IP guardada; redescubrimiento por identidad estable y sustitución
@@ -189,9 +204,10 @@ ningún dispositivo y no se recibió la IP del proyector.
 - Prueba adicional de sesión PJLink: consultas, selección de entradas, rechazo de
   entrada no anunciada y reconexión sin enviar Power de prueba: correcta.
   Total de resultados unitarios: 112 pruebas, 0 fallos, 0 errores.
-  Lint: 0 errores. Incluye EB-L260F: perfil propio, 15 códigos raw, ausencia de
-  Menu/Esc/Aspect/Color Mode/Computer/USB/LAN/Info/Ajustes, rechazo de comandos
-  sin captura y conservación del perfil PowerLite 118.
+  Lint: 0 errores. Incluye EB-L260F: perfil propio, 15 capturas raw, códigos de
+  raw de referencia para Menu/Esc/Default/Aspect/Color Mode/Computer/HDMI/USB/LAN/
+  User/Auto/Ajustes y teclas 1–9, ausencia de código para 0/All, ID, Info y Num,
+  rechazo de comandos sin código y conservación del perfil PowerLite 118.
 - `connectedDebugAndroidTest`: intentado, bloqueado por `No connected devices!`
   (`epson-device-verification.log`); no hay resultados instrumentados físicos.
 - APK: `app/build/outputs/apk/debug/app-debug.apk`.
