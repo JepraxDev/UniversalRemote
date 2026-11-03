@@ -636,7 +636,6 @@ fun EpsonFunctionPanel(
 @Composable
 fun EpsonIrStatus(
     state: EpsonIrRemoteUiState,
-    onConfirm: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val verification = when (state.validationStatus) {
@@ -701,34 +700,6 @@ fun EpsonIrStatus(
                         fontSize = 12.sp,
                         lineHeight = 17.sp,
                     )
-                }
-            }
-        }
-        if (state.canSaveConfirmation && state.lastTransmitted != null) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = EpsonRemoteColors.SurfaceRaised,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        "¿El proyector respondió a este comando?",
-                        color = EpsonRemoteColors.Text,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = { onConfirm(true) },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(containerColor = EpsonRemoteColors.AccentSoft),
-                        ) { Text("Sí, funcionó") }
-                        OutlinedButton(
-                            onClick = { onConfirm(false) },
-                            modifier = Modifier.weight(1f),
-                            border = BorderStroke(1.dp, EpsonRemoteColors.TextMuted.copy(alpha = 0.4f)),
-                        ) { Text("No funcionó", color = EpsonRemoteColors.TextMuted) }
-                    }
                 }
             }
         }

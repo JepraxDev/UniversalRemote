@@ -85,7 +85,6 @@ fun EpsonIrRemoteScreen(
                 item {
                     EpsonIrStatus(
                         state = state,
-                        onConfirm = viewModel::confirmLastCommand,
                     )
                 }
                 item {
@@ -97,7 +96,7 @@ fun EpsonIrRemoteScreen(
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 EpsonPowerButton(
-                                    onPower = { viewModel.sendCommand(RemoteCommand.POWER) },
+                                    onPower = { viewModel.sendCommand(RemoteCommand.POWER, confirmed = true) },
                                     enabled = state.canTransmit,
                                 )
                                 EpsonSourcePanel(
@@ -113,7 +112,7 @@ fun EpsonIrRemoteScreen(
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 EpsonPowerButton(
-                                    onPower = { viewModel.sendCommand(RemoteCommand.POWER) },
+                                    onPower = { viewModel.sendCommand(RemoteCommand.POWER, confirmed = true) },
                                     enabled = state.canTransmit,
                                 )
                                 EpsonSourcePanel(
@@ -128,17 +127,6 @@ fun EpsonIrRemoteScreen(
                             color = EpsonRemoteColors.TextMuted,
                             fontSize = 10.sp,
                             lineHeight = 14.sp,
-                        )
-                    }
-                }
-                item {
-                    EpsonRemoteSection(
-                        title = "Teclado numérico",
-                        subtitle = "Num, ID, Auto y 0/All reproducen el comportamiento del control original.",
-                    ) {
-                        EpsonNumericKeypad(
-                            enabled = state.canTransmit,
-                            onCommand = viewModel::sendCommand,
                         )
                     }
                 }
@@ -181,6 +169,17 @@ fun EpsonIrRemoteScreen(
                             "El centro del D-Pad ejecuta Enter.",
                             color = EpsonRemoteColors.TextMuted,
                             fontSize = 10.sp,
+                        )
+                    }
+                }
+                item {
+                    EpsonRemoteSection(
+                        title = "Teclado numérico",
+                        subtitle = "Num, ID, Auto y 0/All reproducen el comportamiento del control original.",
+                    ) {
+                        EpsonNumericKeypad(
+                            enabled = state.canTransmit,
+                            onCommand = viewModel::sendCommand,
                         )
                     }
                 }
